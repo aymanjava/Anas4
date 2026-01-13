@@ -1,10 +1,9 @@
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
 
-// إعداد المحرك ليقرأ المفتاح من Render Environment Variables
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_KEY, // قمنا بإزالة التوكن ووضعنا المتغير البرمجي بدلاً منه
+// إعداد المحرك للإصدار الرابع v4
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_KEY, // تأكد أنه مضاف في Render
 });
-const openai = new OpenAIApi(configuration);
 
 // كائن لحفظ الذاكرة مؤقتاً
 if (!global.heba_chat_memory) {
@@ -13,10 +12,10 @@ if (!global.heba_chat_memory) {
 
 module.exports.config = {
   name: "هبة",
-  version: "3.1.0",
+  version: "4.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "ذكاء هبة المطور مع ميزة الذاكرة (نسخة آمنة)",
+  description: "ذكاء هبة المطور - متوافق مع OpenAI v4",
   commandCategory: "الذكاء الاصطناعي",
   usages: "[سؤالك]",
   cooldowns: 5
@@ -27,13 +26,13 @@ module.exports.run = async function({ api, event, args }) {
   const prompt = args.join(" ");
 
   if (!prompt) {
-    return api.sendMessage("╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n✨ نعم! أنا أتذكرك، هل لديك سؤال آخر؟\n╰──────────────╯", threadID, messageID);
+    return api.sendMessage("╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n✨ نعم! أنا معك، هل تريد سؤالي عن شيء؟\n╰──────────────╯", threadID, messageID);
   }
 
-  // 1. استرجاع ذاكرة المستخدم أو إنشاء ذاكرة جديدة
+  // 1. استرجاع أو إنشاء الذاكرة
   if (!global.heba_chat_memory.has(senderID)) {
     global.heba_chat_memory.set(senderID, [
-      { role: "system", content: "أنتِ 'هبة'، بوت ذكي بلمسة أنثوية لطيفة، تتحدثين بالعربية بأسلوب مساعد وودود جداً." }
+      { role: "system", content: "أنتِ 'هبة'، بوت ذكي ولطيف، تتحدثين بالعربية بأسلوب مساعد." }
     ]);
   }
 
@@ -44,21 +43,17 @@ module.exports.run = async function({ api, event, args }) {
 
   api.setMessageReaction("⌛", messageID, () => {}, true);
   
-  api.sendMessage("╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n🧠 جاري مراجعة ذاكرتي والرد...\n╰──────────────╯", threadID, async (err, info) => {
+  api.sendMessage("╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n🧠 جاري التفكير والرد...\n╰──────────────╯", threadID, async (err, info) => {
     try {
-      // التأكد من وجود المفتاح في النظام قبل الطلب
-      if (!process.env.OPENAI_KEY) {
-        throw new Error("OPENAI_KEY_MISSING");
-      }
-
-      const response = await openai.createChatCompletion({
+      // 2. طلب الرد باستخدام طريقة الإصدار الرابع v4
+      const response = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: userMemory,
         max_tokens: 800,
         temperature: 0.7
       });
 
-      const reply = response.data.choices[0].message.content.trim();
+      const reply = response.choices[0].message.content.trim();
       userMemory.push({ role: "assistant", content: reply });
       global.heba_chat_memory.set(senderID, userMemory);
 
@@ -70,13 +65,12 @@ module.exports.run = async function({ api, event, args }) {
       );
 
     } catch (error) {
-      console.error("Memory Chat Error:", error);
+      console.error("OpenAI v4 Error:", error);
       api.setMessageReaction("❌", messageID, () => {}, true);
       
-      let errorMsg = "❌ عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي.";
-      if (error.message === "OPENAI_KEY_MISSING") {
-        errorMsg = "❌ خطأ: مفتاح OPENAI_KEY غير مضاف في إعدادات Render!";
-      }
+      let errorMsg = "❌ حدث خطأ في معالجة طلبك.";
+      if (error.status === 401) errorMsg = "❌ خطأ: التوكن غير صحيح (Unauthorized).";
+      if (error.status === 429) errorMsg = "❌ خطأ: انتهى رصيد الـ API الخاص بك (Quota Exceeded).";
 
       return api.editMessage(`╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n${errorMsg}\n╰──────────────╯`, info.messageID);
     }
