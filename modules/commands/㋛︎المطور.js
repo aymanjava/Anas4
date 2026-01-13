@@ -1,55 +1,36 @@
-const axios = require("axios");
-const fs = require("fs-extra");
-
 module.exports.config = {
-  name: "مطور",
-  version: "1.0.4",
+  name: "المطور",
+  version: "1.0.0",
   hasPermssion: 0,
-  credits: "Gemini",
-  description: "عرض معلومات المطور مع ميزة التبديل التلقائي في حال فشل الـ GIF",
-  commandCategory: "نظام",
+  credits: "Hiba",
+  description: "عرض معلومات مطور البوت",
+  commandCategory: "النظام",
+  usages: "",
   cooldowns: 5
 };
 
-module.exports.run = async function({ api, event }) {
+module.exports.run = async function ({ api, event, Users }) {
   const { threadID, messageID } = event;
+  const request = require("request");
+  const fs = require("fs-extra");
 
-  // البيانات الخاصة بكِ
-  const gifUrl = "https://i.imgur.com/nSNo5mR.gif"; 
-  const devName = "『 ايمن 』"; 
-  const devFB = "https://www.facebook.com/xvk1c"; 
-  const devTele = "@X2_FD"; 
-  const status = "مـتـوفـر لـلـمـسـاعـدة ✨";
+  // رابط الصورة المتحركة الذي اخترتيه
+  const gifUrl = "https://media.giphy.com/media/YhqyiijLeMCpq/giphy.gif";
+  const path = __dirname + "/cache/dev_gif.gif";
 
-  const msg = "╭─────────────╮\n" +
-              "    💎 مـعـلـومـات الـمـطـور 💎\n" +
-              "╰─────────────╯\n" +
-              `🔳 الـمـطور: ${devName}\n` +
-              `🔳 الـحـالـة: ${status}\n\n` +
-              `🔳 الـفـيـسـبـوك:\n${devFB}\n\n` +
-              `🔳 تـلـيـجـرام: ${devTele}\n` +
-              "╰─────────────╯\n" +
-              "✨『 صُـنـع بـكـل حـب لـخـدمـتـكـم 』";
-
-  const path = __dirname + `/cache/dev_animation.gif`;
-
-  try {
-    // محاولة تحميل وإرسال الـ GIF
-    const response = await axios.get(gifUrl, { responseType: "arraybuffer" });
-    fs.writeFileSync(path, Buffer.from(response.data, "utf-8"));
-
+  const callback = () => {
     return api.sendMessage({
-      body: msg,
+      body: "╭─────────────╮\n" +
+            "    💎 مـعـلـومـات الـمـطـور\n" +
+            "╰─────────────╯\n" +
+            "🔳 الاسـم: 『 ايمن 』\n" +
+            "🔳 الـرابـط: fb.com/xvk1c\n" +
+            "🔳 الـجـنـس: ذكر\n" +
+            "🔳 الـمـهـنة: مـطـور بوتـات\n\n" +
+            "✨ شـكـراً لاسـتـخـدامـك بـوت 𝙃𝙄𝘽𝘼 ✨",
       attachment: fs.createReadStream(path)
-    }, threadID, () => {
-      if (fs.existsSync(path)) fs.unlinkSync(path);
-    }, messageID);
+    }, threadID, () => fs.unlinkSync(path), messageID);
+  };
 
-  } catch (error) {
-    // في حال فشل الـ GIF لأي سبب، يتم إرسال المعلومات النصية فقط
-    console.error("فشل إرسال الـ GIF، يتم إرسال النص فقط:", error.message);
-    if (fs.existsSync(path)) fs.unlinkSync(path); // تنظيف الكاش إذا وُجد الملف
-    
-    return api.sendMessage(msg, threadID, messageID);
-  }
+  return request(encodeURI(gifUrl)).pipe(fs.createWriteStream(path)).on("close", callback);
 };
