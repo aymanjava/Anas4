@@ -1,37 +1,39 @@
 module.exports.config = {
     name: "antiout",
-    eventType: ["log:unsubscribe"],
-    version: "0.0.1",
+    eventType: ["log:unsubscribe"], // يعمل عند مغادرة أو طرد شخص
+    version: "1.0.0",
     credits: "DungUwU",
     description: "إعادة الأعضاء الذين يغادرون ومنع الهروب"
 };
 
-module.exports.run = async({ event, api, Threads, Users }) => {
-    let data = (await Threads.getData(event.threadID)).data || {};
+module.exports.handleEvent = async ({ event, api, Threads, Users }) => {
+    const { threadID, logMessageData, author } = event;
     
-    // التحقق من تفعيل الميزة
-    if (!data.antiout) return;
-    
-    // إذا كان البوت هو المغادر لا يفعل شيء
-    if (event.logMessageData.leftParticipantFbId == api.getCurrentUserID()) return;
+    // جلب بيانات المجموعة للتحقق هل الميزة مفعلة أم لا
+    let data = (await Threads.getData(threadID)).data || {};
+    if (!data.antiout) return; 
 
-    const idUser = event.logMessageData.leftParticipantFbId;
+    // معرف الشخص الذي غادر أو طُرد
+    const idUser = logMessageData.leftParticipantFbId;
+    
+    // إذا كان البوت هو من غادر، لا يفعل شيئاً
+    if (idUser == api.getCurrentUserID()) return;
+
+    // جلب اسم المستخدم
     const name = global.data.userName.get(idUser) || await Users.getNameUser(idUser);
     
-    // التحقق من طريقة الخروج
-    const isSelfOut = (event.author == idUser);
-
-    if (isSelfOut) {
-        // حالة المغادرة بنفسه - يحاول البوت إعادته
-        api.addUserToGroup(idUser, event.threadID, (error, info) => {
+    // التحقق هل الشخص غادر بنفسه أم طُرد
+    // إذا كان الـ author (الذي قام بالفعل) هو نفسه الـ idUser، يعني غادر بنفسه
+    if (author == idUser) {
+        api.addUserToGroup(idUser, threadID, (error) => {
             if (error) {
-                api.sendMessage(`╭─────────────╮\n  ⚠️ [ ${name} ]\n  ✨ حـاولـت ارجـاعـك ولـكن لـم أسـتـطـع\n╰─────────────╯`, event.threadID);
+                api.sendMessage(`╭─────────────╮\n  ⚠️ [ ${name} ]\n  ✨ حاولت إرجاعك ولكن إعدادات حسابك تمنعني.\n╰─────────────╯`, threadID);
             } else {
-                api.sendMessage(`╭─────────────╮\n  💎 مـمـنـوع الـهـروب يـا [ ${name} ]\n  ✨ تـمـت إعـادتـك غـصـبـاً إلـى الـمـجـمـوعة\n╰─────────────╯`, event.threadID);
+                api.sendMessage(`╭─────────────╮\n  💎 ممنوع الهروب يا [ ${name} ]\n  ✨ تمت إعادتك غصباً إلى المجموعة.\n╰─────────────╯`, threadID);
             }
         });
     } else {
-        // حالة الطرد بواسطة أدمن - البوت يرسل رسالة وداع بسيطة ولا يعيده
-        api.sendMessage(`╭─────────────╮\n  🚪 وداعـاً [ ${name} ]\n  ✨ تـم طـرده بـواسـطـة الأدمن\n╰─────────────╯`, event.threadID);
+        // إذا طُرد من قبل مسؤول، يكتفي البوت برسالة وداع
+        api.sendMessage(`╭─────────────╮\n  🚪 وداعاً [ ${name} ]\n  ✨ تم طرده بواسطة المسؤول.\n╰─────────────╯`, threadID);
     }
-}
+};
