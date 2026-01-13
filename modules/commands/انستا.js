@@ -1,13 +1,14 @@
 const axios = require("axios");
 const fs = require("fs-extra");
+const path = require("path");
 
 module.exports.config = {
   name: "انستا",
-  version: "1.0.0",
+  version: "2.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "تحميل ريلز وصور من إنستغرام",
-  commandCategory: "ميديا",
+  description: "تحميل ريلز وصور من إنستغرام بشكل آمن",
+  commandCategory: "◯ ميديا",
   usePrefix: true,
   cooldowns: 10
 };
@@ -17,27 +18,40 @@ module.exports.run = async function({ api, event, args }) {
   const url = args[0];
   if (!url) return api.sendMessage("◯ يرجى وضع رابط إنستغرام بعد الأمر.", threadID, messageID);
 
-  api.sendMessage("◈ جاري جلب الوسائط... [ 3 ]", threadID, async (err, info) => {
-    setTimeout(() => api.editMessage("◈ جاري جلب الوسائط... [ 2 ]", info.messageID), 1000);
-    setTimeout(() => api.editMessage("◈ جاري جلب الوسائط... [ 1 ]", info.messageID), 2000);
+  // رسالة انتظار
+  const msgInfo = await api.sendMessage("◈ جاري جلب الوسائط...", threadID, messageID);
 
-    try {
-      const res = await axios.get(`https://api.samirxpikachu.it.com/alldl?url=${encodeURIComponent(url)}`);
-      const link = res.data.result || res.data.url;
-      const path = __dirname + `/cache/insta_${Date.now()}.mp4`;
+  try {
+    // استبدل "YOUR_API_KEY" بمفتاحك من LolHuman أو API مشابه
+    const res = await axios.get(`https://api.lolhuman.xyz/api/instagram?apikey=YOUR_API_KEY&url=${encodeURIComponent(url)}`);
+    const media = res.data.result; // النتيجة تحتوي على فيديو أو صور
 
-      const vid = (await axios.get(link, { responseType: "arraybuffer" })).data;
-      fs.writeFileSync(path, Buffer.from(vid, "utf-8"));
+    if (!media) throw new Error("❌ لا توجد وسائط متاحة.");
 
-      api.sendMessage({
-        body: `◈ ───『 إنـسـتـغـرام 』─── ◈\n\n◉ تم التحميل بنجاح\n\n◈ ─────────────── ◈`,
-        attachment: fs.createReadStream(path)
-      }, threadID, () => {
-        fs.unlinkSync(path);
-        api.unsendMessage(info.messageID);
-      }, messageID);
-    } catch (e) {
-      api.editMessage("❌ فشل التحميل، تأكد من أن الحساب عام وليس خاصاً.", info.messageID);
+    for (let i = 0; i < media.length; i++) {
+      const mediaUrl = media[i].url;
+      const ext = mediaUrl.endsWith(".mp4") ? ".mp4" : ".jpg";
+      const filePath = path.join(__dirname, `cache/insta_${Date.now()}${i}${ext}`);
+
+      // تحميل الملف
+      const fileData = (await axios.get(mediaUrl, { responseType: "arraybuffer" })).data;
+      fs.writeFileSync(filePath, Buffer.from(fileData));
+
+      // إرسال الوسائط
+      await api.sendMessage({
+        body: `◈ ───『 إنـسـتـغـرام 』─── ◈\n\n◉ تم التحميل بنجاح!`,
+        attachment: fs.createReadStream(filePath)
+      }, threadID);
+
+      // حذف الملف بعد الإرسال
+      fs.unlinkSync(filePath);
     }
-  }, messageID);
+
+    // حذف رسالة الانتظار
+    api.unsendMessage(msgInfo.messageID);
+
+  } catch (e) {
+    console.log(e);
+    api.editMessage("❌ فشل التحميل، تأكد من أن الرابط صحيح وأن الحساب عام.", msgInfo.messageID);
+  }
 };
