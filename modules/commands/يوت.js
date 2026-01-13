@@ -1,54 +1,61 @@
-const axios = require("axios");
+const youtube = require("youtube-search-api");
 
 module.exports.config = {
   name: "يوت",
-  version: "10.0.0",
+  version: "2.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "بحث يوتيوب بـ 10 مصادر وعد تنازلي تفاعلي",
+  description: "بحث يوتيوب احترافي بمكاتب البوت والعد التنازلي",
   commandCategory: "ميديا",
   usePrefix: true,
-  cooldowns: 7
+  cooldowns: 5
 };
 
 module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID } = event;
   const query = args.join(" ");
-  if (!query) return api.sendMessage("✨ سيدي أيمن، ماذا تريد أن نبحث في يوتيوب؟", threadID, messageID);
 
-  api.sendMessage("🔎 جاري التفتيش في يوتيوب... [ 3 ]", threadID, async (err, info) => {
-    setTimeout(() => api.editMessage("🔎 جاري التفتيش في يوتيوب... [ 2 ]", info.messageID), 1000);
-    setTimeout(() => api.editMessage("🔎 جاري التفتيش في يوتيوب... [ 1 ]", info.messageID), 2000);
+  if (!query) return api.sendMessage("✨ سيدي أيمن، أخبرني ماذا تريد أن نبحث في يوتيوب؟", threadID, messageID);
+
+  // إرسال رسالة البداية التي سيتغير فيها العداد
+  api.sendMessage("🔎 جاري البحث في يوتيوب... [ 3 ]", threadID, async (err, info) => {
+    
+    // العد التنازلي التفاعلي بتعديل نفس الرسالة
+    setTimeout(() => api.editMessage("🔎 جاري البحث في يوتيوب... [ 2 ]", info.messageID), 1000);
+    setTimeout(() => api.editMessage("🔎 جاري البحث في يوتيوب... [ 1 ]", info.messageID), 2000);
 
     setTimeout(async () => {
-      const apis = [
-        `https://api.popcat.xyz/youtube?q=${encodeURIComponent(query)}`,
-        `https://api.samirxpikachu.it.com/yts?q=${encodeURIComponent(query)}`,
-        `https://api.vyt.com/search?q=${encodeURIComponent(query)}`,
-        `https://yt-search-api.herokuapp.com/search?q=${encodeURIComponent(query)}`,
-        `https://api.betabotz.org/api/search/youtube?query=${encodeURIComponent(query)}`
-      ];
+      try {
+        // استخدام المكتبة المثبتة عندك في package.json
+        const data = await youtube.GetListByKeyword(query, false, 5);
+        
+        if (!data.items || data.items.length === 0) {
+          return api.editMessage("❌ لم أجد أي نتائج لهذا البحث يا سيدي.", info.messageID);
+        }
 
-      let success = false;
-      for (const url of apis) {
-        try {
-          const res = await axios.get(url);
-          let results = res.data.items || res.data.result || res.data;
+        let msg = `✨ **نـتـائـج يـوتيـوب لـلـبـحـث: ${query}** ✨\n━━━━━━━━━━━━━━\n\n`;
+
+        data.items.forEach((item, i) => {
+          const title = item.title;
+          const id = item.id;
+          const duration = item.length?.simpleText || "غير معروف";
+          const link = `https://www.youtube.com/watch?v=${id}`;
           
-          if (results && results.length > 0) {
-            let msg = `✨ **نـتـائـج يـوتيـوب: ${query}** ✨\n━━━━━━━━━━━━━━\n\n`;
-            results.slice(0, 4).forEach((v, i) => {
-              msg += `${i + 1}. 📺 **${v.title.substring(0, 40)}...**\n🔗 ${v.url}\n\n`;
-            });
-            msg += `━━━━━━━━━━━━━━\n💡 استخدم (.المستكشف) للتحميل!`;
-            
-            api.editMessage(msg, info.messageID);
-            api.setMessageReaction("🎬", messageID, () => {}, true);
-            success = true; break;
-          }
-        } catch (e) { continue; }
+          msg += `${i + 1}. 📺 **${title.substring(0, 45)}...**\n`;
+          msg += `⏳ الـمدة: ${duration}\n`;
+          msg += `🔗 الـرابط: ${link}\n\n`;
+        });
+
+        msg += `━━━━━━━━━━━━━━\n💡 استخدم الرابط مع أمر (.المستكشف) للتحميل!`;
+
+        // إرسال النتيجة النهائية وتغيير التفاعل
+        api.editMessage(msg, info.messageID);
+        api.setMessageReaction("🎬", messageID, () => {}, true);
+
+      } catch (e) {
+        console.error(e);
+        api.editMessage("❌ حدث خطأ أثناء جلب البيانات من المكتبة الداخلية.", info.messageID);
       }
-      if (!success) api.editMessage("❌ تعذر العثور على نتائج في يوتيوب حالياً.", info.messageID);
     }, 3000);
   }, messageID);
 };
