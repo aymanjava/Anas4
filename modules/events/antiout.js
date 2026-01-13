@@ -1,39 +1,50 @@
 module.exports.config = {
     name: "antiout",
-    eventType: ["log:unsubscribe"], // يعمل عند مغادرة أو طرد شخص
-    version: "1.0.0",
+    eventType: ["log:unsubscribe"],
+    version: "1.1.0",
     credits: "DungUwU",
-    description: "إعادة الأعضاء الذين يغادرون ومنع الهروب"
+    description: "نظام هبة لمنع الهروب من المجموعة"
 };
 
 module.exports.handleEvent = async ({ event, api, Threads, Users }) => {
     const { threadID, logMessageData, author } = event;
     
-    // جلب بيانات المجموعة للتحقق هل الميزة مفعلة أم لا
+    // جلب البيانات - تأكد من تفعيل الأمر في المجموعة أولاً
     let data = (await Threads.getData(threadID)).data || {};
-    if (!data.antiout) return; 
+    if (data.antiout === undefined || data.antiout === false) return; 
 
-    // معرف الشخص الذي غادر أو طُرد
     const idUser = logMessageData.leftParticipantFbId;
-    
-    // إذا كان البوت هو من غادر، لا يفعل شيئاً
     if (idUser == api.getCurrentUserID()) return;
 
-    // جلب اسم المستخدم
-    const name = global.data.userName.get(idUser) || await Users.getNameUser(idUser);
-    
-    // التحقق هل الشخص غادر بنفسه أم طُرد
-    // إذا كان الـ author (الذي قام بالفعل) هو نفسه الـ idUser، يعني غادر بنفسه
-    if (author == idUser) {
-        api.addUserToGroup(idUser, threadID, (error) => {
-            if (error) {
-                api.sendMessage(`╭─────────────╮\n  ⚠️ [ ${name} ]\n  ✨ حاولت إرجاعك ولكن إعدادات حسابك تمنعني.\n╰─────────────╯`, threadID);
-            } else {
-                api.sendMessage(`╭─────────────╮\n  💎 ممنوع الهروب يا [ ${name} ]\n  ✨ تمت إعادتك غصباً إلى المجموعة.\n╰─────────────╯`, threadID);
-            }
-        });
-    } else {
-        // إذا طُرد من قبل مسؤول، يكتفي البوت برسالة وداع
-        api.sendMessage(`╭─────────────╮\n  🚪 وداعاً [ ${name} ]\n  ✨ تم طرده بواسطة المسؤول.\n╰─────────────╯`, threadID);
+    try {
+        const name = await Users.getNameUser(idUser);
+        
+        // إذا كان الشخص هو من خرج بنفسه
+        if (author == idUser) {
+            return api.addUserToGroup(idUser, threadID, (err) => {
+                if (err) {
+                    return api.sendMessage(`🎀 [ ${name} ]\nحاولت أرجعك لبيتك بس إعداداتك منعتني.. 🌸`, threadID);
+                } else {
+                    return api.sendMessage(`🎀 مـمنوع الهروب يـا [ ${name} ]\nرجعتك لمكانك، لا تعيدها مرة ثانية.. ✨`, threadID);
+                }
+            });
+        } else {
+            // إذا تم طرده
+            return api.sendMessage(`🚪 وداعاً [ ${name} ]\nتم إخراجه بواسطة المسؤول.. ✨`, threadID);
+        }
+    } catch (e) {
+        console.log("Antiout Error: " + e);
     }
+};
+
+// إضافة وظيفة run فارغة لكي لا يظهر خطأ في بعض أنظمة الفحص
+module.exports.run = async ({ api, event, Threads }) => {
+    const { threadID, messageID } = event;
+    let data = (await Threads.getData(threadID)).data || {};
+    
+    if (typeof data.antiout == "undefined" || data.antiout == false) data.antiout = true;
+    else data.antiout = false;
+    
+    await Threads.setData(threadID, { data });
+    return api.sendMessage(`✨ نظام منع الخروج الآن: ${data.antiout ? "قيد التشغيل ✅" : "متوقف عن العمل ❌"}`, threadID, messageID);
 };
