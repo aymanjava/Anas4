@@ -1,100 +1,80 @@
 const fs = require("fs-extra");
-const path = __dirname + '/cache/players.json';
+// المسار الموحد لكل النقاط في البوت
+const economyPath = __dirname + '/cache/global_economy.json';
+const playerPath = __dirname + '/cache/players_stats.json';
 
 module.exports.config = {
   name: "محاكي",
-  version: "2.0.0",
+  version: "3.5.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "محاكاة خيالية ضخمة - نسخة التوب ايمن",
+  description: "محاكي الأبطال المرتبط بالخزينة المركزية - نسخة التوب",
   commandCategory: "العاب",
-  usages: "[تسجيل/بروفايل/قتال/متجر/ترقية]",
-  cooldowns: 5
+  usages: "[تسجيل/بروفايل/قتال]",
+  cooldowns: 2
 };
 
 module.exports.onLoad = async () => {
   if (!fs.existsSync(__dirname + '/cache')) fs.mkdirSync(__dirname + '/cache');
-  if (!fs.existsSync(path)) fs.writeFileSync(path, "[]", "utf-8");
+  if (!fs.existsSync(economyPath)) fs.writeFileSync(economyPath, "{}", "utf-8");
+  if (!fs.existsSync(playerPath)) fs.writeFileSync(playerPath, "[]", "utf-8");
 };
 
-module.exports.run = async function({ api, event, args, Users }) {
+module.exports.run = async function({ api, event, args, Currencies, Users }) {
   const { threadID, messageID, senderID } = event;
-  let data = JSON.parse(fs.readFileSync(path));
-  let player = data.find(i => i.id == senderID);
-  const adminBot = global.config.ADMINBOT;
-
-  // --- الوحوش والزعماء ---
-  const monsters = [
-    { name: "التنين الأسود", hp: 300, attack: 35, xp: 150, gold: 100 },
-    { name: "فارس الظلام", hp: 200, attack: 25, xp: 100, gold: 60 },
-    { name: "غول الجبل", hp: 150, attack: 15, xp: 70, gold: 40 },
-    { name: "ساحر الجليد", hp: 120, attack: 40, xp: 90, gold: 50 },
-    { name: "الزعيم المرعب", hp: 1000, attack: 100, xp: 1000, gold: 500 }
-  ];
-
-  // --- نظام المتجر ---
-  const shop = [
-    { item: "سيف الأساطير", price: 500, boost: 30 },
-    { item: "درع التنين", price: 400, boostHp: 100 },
-    { item: "جرعة الشفاء", price: 50, heal: 100 }
-  ];
-
-  // التحقق إذا كان المستخدم هو "التوب"
-  const isTop = adminBot.includes(senderID);
+  let economy = JSON.parse(fs.readFileSync(economyPath));
+  let stats = JSON.parse(fs.readFileSync(playerPath));
+  
+  // إنشاء حساب مالي موحد إذا لم يوجد
+  if (!economy[senderID]) economy[senderID] = { balance: 500 }; 
+  
+  let player = stats.find(i => i.id == senderID);
+  const isTop = global.config.ADMINBOT.includes(senderID);
 
   switch(args[0]) {
     case 'تسجيل': {
-      if (player) return api.sendMessage("◯ أنت مسجل بالفعل كبطل!", threadID, messageID);
-      const name = await Users.getNameUser(senderID);
-      data.push({
-        id: senderID, name: name, level: 1, hp: 150, maxHp: 150, 
-        attack: 20, xp: 0, gold: 200, kills: 0, items: []
-      });
-      fs.writeFileSync(path, JSON.stringify(data, null, 2));
-      return api.sendMessage(`◈ ───『 الـتـسـجـيل 』─── ◈\n\n◯ أهلاً بك يا ${name} في العالم الضخم\n◯ تم منحك موارد البداية المتطورة\n\n◈ ─────────────── ◈`, threadID);
+      if (player) return api.sendMessage("◯ حسابك القتالي مسجل بالفعل!", threadID, messageID);
+      stats.push({ id: senderID, level: 1, hp: 200, attack: 25, kills: 0 });
+      fs.writeFileSync(playerPath, JSON.stringify(stats, null, 2));
+      return api.sendMessage("◈ ───『 الـتـسـجـيل المـوحـد 』─── ◈\n\n◯ تم تفعيل حسابك في النظام الموحد\n◯ رصيدك الافتتاحي: 500$\n\n◈ ─────────────── ◈", threadID);
     }
 
     case 'بروفايل': {
-      if (!player) return api.sendMessage("◯ سجل أولاً عبر كتابة: محاكي تسجيل", threadID, messageID);
-      let status = isTop ? "التوب والمدير العام 👑" : "بطل مغامر ⚔️";
-      return api.sendMessage(`◈ ───『 لائحة المعلومات 』─── ◈\n\n◯ الرتبة: ${status}\n◯ الاسم: ${player.name}\n◯ المستوى: ${player.level}\n◯ الدم: ${player.hp}/${player.maxHp}\n◯ الهجوم: ${player.attack}\n◯ الذهب: ${player.gold}$\n◯ الضحايا: ${player.kills}\n\n◈ ─────────────── ◈`, threadID);
+      if (!player) return api.sendMessage("◯ سجل أولاً: محاكي تسجيل", threadID, messageID);
+      // جلب الرصيد من الخزينة المركزية
+      const totalBalance = (await Currencies.getData(senderID)).money || economy[senderID].balance;
+      
+      return api.sendMessage(`◈ ───『 لائـحـة الـتـوب 』─── ◈\n\n◯ الرتبة: ${isTop ? "المدير العام (التوب) 👑" : "مقاتل"} \n◯ الـمـسـتوى: ${player.level}\n◯ الـهـجـوم: ${player.attack}\n◯ الـرصـيـد المـوحـد: ${totalBalance}$\n◯ الـضـحايا: ${player.kills}\n\n◈ ─────────────── ◈`, threadID);
     }
 
     case 'قتال': {
       if (!player) return api.sendMessage("◯ سجل أولاً يا بطل!", threadID, messageID);
-      const enemy = monsters[Math.floor(Math.random() * monsters.length)];
       
-      // إذا كان "التوب" يقاتل، هو دائماً يفوز
+      const monster = { name: "تنين الفوضى", hp: 500, gold: 250, xp: 100 };
+      
       if (isTop) {
-        player.gold += enemy.gold * 2;
-        player.xp += enemy.xp * 2;
+        // هيبة التوب: فوز تلقائي وإضافة للمخزن الموحد
+        await Currencies.increaseMoney(senderID, monster.gold * 10);
         player.kills += 1;
-        fs.writeFileSync(path, JSON.stringify(data, null, 2));
-        return api.sendMessage(`◈ ──『 هيبة التوب ايمن 』── ◈\n\n◯ واجهت ${enemy.name} وهرب منك رعباً!\n◯ حصدت جوائز مضاعفة تلقائياً ✨\n\n◈ ─────────────── ◈`, threadID);
+        fs.writeFileSync(playerPath, JSON.stringify(stats, null, 2));
+        return api.sendMessage(`◈ ──『 سـيـادة الـتـوب 』── ◈\n\n◯ التنين انحنى أمامك واعتذر!\n◯ تم إضافة ${monster.gold * 10}$ لخزنتك المركزية.\n\n◈ ─────────────── ◈`, threadID);
       }
 
-      let playerHp = player.hp;
-      let enemyHp = enemy.hp;
-      while (playerHp > 0 && enemyHp > 0) {
-        enemyHp -= Math.floor(Math.random() * player.attack) + 10;
-        if (enemyHp > 0) playerHp -= Math.floor(Math.random() * enemy.attack);
-      }
-
-      if (playerHp > 0) {
-        player.gold += enemy.gold;
-        player.xp += enemy.xp;
-        player.hp = playerHp;
+      // قتال اللاعب العادي
+      let win = Math.random() > 0.5;
+      if (win) {
+        await Currencies.increaseMoney(senderID, monster.gold);
         player.kills += 1;
-        api.sendMessage(`◈ ──『 نـصـر مـؤزر 』── ◈\n\n◯ هزمت ${enemy.name} بنجاح!\n◯ ربحت ${enemy.gold}$ ودمك المتبقي ${playerHp}\n\n◈ ─────────────── ◈`, threadID);
+        player.level += 1;
+        fs.writeFileSync(playerPath, JSON.stringify(stats, null, 2));
+        api.sendMessage(`✅ هزمت الوحش وربحت ${monster.gold}$ أضيفت لرصيدك الموحد!`, threadID);
       } else {
-        player.hp = 30;
-        api.sendMessage(`◈ ──『 هـزيـمة 』── ◈\n\n◯ سحقتك قوة ${enemy.name}..\n\n◈ ─────────────── ◈`, threadID);
+        api.sendMessage("❌ هُزمت في المعركة.. حاول تطوير سلاحك.", threadID);
       }
-      fs.writeFileSync(path, JSON.stringify(data, null, 2));
       break;
     }
 
     default:
-      return api.sendMessage(`◈ ──『 محاكي هبة الضخم 』── ◈\n\n◯ [ محاكي تسجيل ]\n◯ [ محاكي بروفايل ]\n◯ [ محاكي قتال ]\n◯ [ محاكي متجر ]\n\n│←› إدارة: التوب ايمن 👑\n◈ ─────────────── ◈`, threadID);
+      api.sendMessage("◯ الأوامر: [تسجيل، بروفايل، قتال]", threadID);
   }
 };
