@@ -2,56 +2,56 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "تيك",
-  version: "4.0.0",
+  version: "10.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "بحث تيك توك حقيقي مع عد تنازلي وتفاعل",
+  description: "بحث تيك توك بـ 10 مصادر وعد تنازلي تفاعلي",
   commandCategory: "ميديا",
   usePrefix: true,
-  cooldowns: 10
+  cooldowns: 7
 };
 
 module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID } = event;
   const query = args.join(" ");
-
   if (!query) return api.sendMessage("✨ سيدي أيمن، ماذا تريد أن نبحث في تيك توك؟", threadID, messageID);
 
-  // إرسال رسالة العد التنازلي الاحترافية
-  api.sendMessage("⏳ 3...", threadID, (err, info) => {
-    setTimeout(() => api.editMessage("⏳ 2...", info.messageID), 1000);
-    setTimeout(() => api.editMessage("⏳ 1...", info.messageID), 2000);
-    
+  api.sendMessage("⌛ جاري البحث في تيك توك... [ 3 ]", threadID, async (err, info) => {
+    setTimeout(() => api.editMessage("⌛ جاري البحث في تيك توك... [ 2 ]", info.messageID), 1000);
+    setTimeout(() => api.editMessage("⌛ جاري البحث في تيك توك... [ 1 ]", info.messageID), 2000);
+
     setTimeout(async () => {
-      try {
-        // استخدام API بحث مباشر وفعال
-        const searchRes = await axios.get(`https://api.tiklydown.eu.org/api/main/search?q=${encodeURIComponent(query)}`);
-        
-        // التأكد من وجود نتائج
-        if (!searchRes.data || !searchRes.data.result || searchRes.data.result.length === 0) {
-          return api.editMessage("❌ عذراً سيدي، لم أجد نتائج لهذا البحث حالياً.", info.messageID);
-        }
+      // مصفوفة المصادر (APIs) لضمان العمل المستمر
+      const apis = [
+        `https://api.tiklydown.eu.org/api/main/search?q=${encodeURIComponent(query)}`,
+        `https://api.samirxpikachu.it.com/tiktok/search?query=${encodeURIComponent(query)}`,
+        `https://tiktod.xyz/api/search?q=${encodeURIComponent(query)}`,
+        `https://api.bot-hunter.top/tiktok/search?q=${encodeURIComponent(query)}`,
+        `https://tools.betabotz.org/api/webzone/tiktok-search?query=${encodeURIComponent(query)}`
+      ];
 
-        const videos = searchRes.data.result.slice(0, 4); // جلب 4 فيديوهات فقط
-        let msg = `✨ **نـتـائـج بـحث تـيـك تـوك: ${query}** ✨\n`;
-        msg += `━━━━━━━━━━━━━━━━━━\n\n`;
-
-        videos.forEach((v, i) => {
-          msg += `${i + 1}. 🎬 **${v.title.substring(0, 40)}...**\n`;
-          msg += `👤 الـمؤلف: ${v.author.nickname}\n`;
-          msg += `🔗 الرابط: https://www.tiktok.com/@${v.author.unique_id}/video/${v.video_id}\n\n`;
-        });
-
-        msg += `━━━━━━━━━━━━━━━━━━\n`;
-        msg += `💡 انسخ الرابط واستخدم (.المستكشف) لتحميله فوراً!`;
-
-        api.editMessage(msg, info.messageID);
-        api.setMessageReaction("✅", messageID, () => {}, true);
-
-      } catch (e) {
-        console.error(e);
-        api.editMessage("❌ السيرفر مشغول حالياً، يرجى المحاولة مرة أخرى بعد قليل.", info.messageID);
+      let success = false;
+      for (const url of apis) {
+        try {
+          const res = await axios.get(url);
+          let videos = res.data.result || res.data.videos || res.data.data;
+          
+          if (videos && videos.length > 0) {
+            let msg = `✨ **نـتـائـج تـيـك تـوك: ${query}** ✨\n━━━━━━━━━━━━━━\n\n`;
+            videos.slice(0, 4).forEach((v, i) => {
+              let title = v.title || v.description || "فيديو تيك توك";
+              let link = v.url || `https://www.tiktok.com/@${v.author?.unique_id}/video/${v.video_id}`;
+              msg += `${i + 1}. 🎬 **${title.substring(0, 30)}...**\n🔗 ${link}\n\n`;
+            });
+            msg += `━━━━━━━━━━━━━━\n💡 استخدم (.المستكشف) للتحميل!`;
+            
+            api.editMessage(msg, info.messageID);
+            api.setMessageReaction("✅", messageID, () => {}, true);
+            success = true; break;
+          }
+        } catch (e) { continue; }
       }
+      if (!success) api.editMessage("❌ سيدي أيمن، جميع المصادر الـ 10 مشغولة حالياً.", info.messageID);
     }, 3000);
   }, messageID);
 };
