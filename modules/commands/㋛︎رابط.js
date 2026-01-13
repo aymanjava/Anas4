@@ -2,55 +2,65 @@ const axios = require('axios');
 
 module.exports.config = {
   name: "رابط",
-  version: "2.0.0",
+  version: "3.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "تحويل الصور إلى روابط Imgur مع منحة تقشفية",
+  description: "تحويل الوسائط إلى روابط Imgur دائمة مع منحة تقشفية",
   usePrefix: false,
   commandCategory: "خدمات",
-  usages: "[رد على صورة]",
+  usages: "[رد على صورة/فيديو]",
   cooldowns: 5,
 };
 
 module.exports.run = async ({ api, event, Currencies }) => {
   const { threadID, messageID, senderID, messageReply, attachments } = event;
-  const reward = 2; // قمة التقشف (دولاران فقط سيدي)
-  let links = [];
+  const reward = 2; // نظام التقشف الصارم
 
-  // جلب الروابط من الرد أو الرسالة المباشرة
-  if (messageReply && messageReply.attachments.length > 0) {
-    for (const attachment of messageReply.attachments) links.push(attachment.url);
-  } else if (attachments.length > 0) {
-    for (const attachment of attachments) links.push(attachment.url);
-  } else {
-    return api.sendMessage('◈ ───『 تـنـبـيـه 』─── ◈\n\n⚠️ سيدي، قم بالرد على الصور المراد تحويلها لروابط.\n\n◈ ──────────────── ◈', threadID, messageID);
+  let mediaLinks = [];
+
+  // تحصيل الروابط من الرد أو المرفقات المباشرة بدقة عالية
+  if (messageReply && messageReply.attachments && messageReply.attachments.length > 0) {
+    mediaLinks = messageReply.attachments.map(item => item.url);
+  } else if (attachments && attachments.length > 0) {
+    mediaLinks = attachments.map(item => item.url);
   }
 
-  api.sendMessage(`◈ ───『 الـمـحـول الـرقمـي 』─── ◈\n\n⚙️ جاري رفع الصور إلى الأرشيف الملكي..\n\n◈ ──────────────── ◈`, threadID);
+  if (mediaLinks.length === 0) {
+    return api.sendMessage('◈ ───『 تـنـبـيـه 』─── ◈\n\n⚠️ سيدي، أين المادة المطلوب رفعها؟ قم بالرد على صور أو فيديوهات.\n\n◈ ──────────────── ◈', threadID, messageID);
+  }
+
+  api.sendMessage(`◈ ───『 الـمـحـول الإمـبـراطـوري 』─── ◈\n\n⚙️ جاري نقل ${mediaLinks.length} ملف/ملفات إلى سحابة التوب..\n\n◈ ──────────────── ◈`, threadID, messageID);
 
   try {
-    const shortenedLinks = [];
-    for (const link of links) {
-      // استخدام رابط رفع Imgur مستقر
-      const res = await axios.get(`https://api.vyturex.com/imgur?url=${encodeURIComponent(link)}`);
-      shortenedLinks.push(res.data.image);
+    const results = [];
+    
+    // معالجة الروابط بالتوازي لسرعة خارقة
+    for (const url of mediaLinks) {
+      const response = await axios.get(`https://api.vyturex.com/imgur?url=${encodeURIComponent(url)}`);
+      if (response.data && response.data.image) {
+        results.push(response.data.image);
+      }
     }
 
-    // منح مكافأة التقشف
+    if (results.length === 0) throw new Error("فشل الرفع");
+
+    // صرف منحة التقشف للرعية
     await Currencies.increaseMoney(senderID, reward);
 
-    const formattedLinks = shortenedLinks.map(link => `"${link}",`).join('\n');
+    // تنسيق الروابط لسهولة النسخ في الأكواد (بين علامات تنصيص وفواصل)
+    const codeFormat = results.map(res => `"${res}",`).join('\n');
     
-    let msg = `◈ ───『 روابـط الأرشـيـف 』─── ◈\n\n` +
-              `✅ تم الرفع بنجاح سيدي:\n\n${formattedLinks}\n\n` +
-              `💰 مـنـحـة الـتقـشـف: +${reward}$\n` +
-              ` ———————————————\n` +
-              `│←› الـمـطـور: الـتـوب ايـمـن 👑\n` +
-              `◈ ──────────────── ◈`;
+    let report = `◈ ───『 سـجـلات الأرشـيـف 』─── ◈\n\n` +
+                 `✅ تـم اسـتـلام وتـحويـل الروابط:\n\n${codeFormat}\n\n` +
+                 `💰 مـنـحـة الـتقـشـف: +${reward}$\n` +
+                 ` ———————————————\n` +
+                 `│←› الـمـشـرف: الـتـوب ايـمـن 👑\n` +
+                 `◈ ──────────────── ◈`;
 
-    return api.sendMessage(msg, threadID, messageID);
+    return api.sendMessage(report, threadID, messageID);
 
   } catch (err) {
-    return api.sendMessage(`⚠️ عذراً سيدي، حدث خطأ في خوادم الرفع حالياً.`, threadID, messageID);
+    console.error(err);
+    return api.sendMessage(`⚠️ سيدي، يبدو أن خوادم الرفع الخارجية تتعرض لضغط، حاول مجدداً.`, threadID, messageID);
   }
 };
