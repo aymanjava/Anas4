@@ -3,9 +3,9 @@ module.exports.config = {
   version: "25.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "ديوان الأوامر الطبقي - فئات ثم أوامر",
+  description: "ديوان الأوامر الأنيق - هبة",
   commandCategory: "النظام",
-  usages: "[الرد برقم الفئة]",
+  usages: "[رقم الفئة]",
   cooldowns: 5
 };
 
@@ -13,52 +13,49 @@ module.exports.handleReply = async function ({ api, event, handleReply }) {
   const { threadID, messageID, body } = event;
   const { commands } = global.client;
 
-  // منع الرد إذا لم يكن المردود عليه هو قائمة الفئات
   if (handleReply.type !== "listCategory") return;
 
   const num = parseInt(body);
   const categoryName = handleReply.categories[num - 1];
 
-  if (!categoryName) return api.sendMessage("⚠️ الرقم الذي أدخلته خارج نطاق السجلات الملكية.", threadID, messageID);
+  if (!categoryName) return api.sendMessage("🌸 الرقم غير موجود في السجلات يا عيني.", threadID, messageID);
 
-  let msg = `◈ ───『 أوامـر فـئـة: ${categoryName} 』─── ◈\n\n`;
+  let msg = `✨ قـائمة أوامـر: 【 ${categoryName} 】\n\n`;
   const cmds = [];
 
   commands.forEach((cmd, name) => {
     let cat = cmd.config.commandCategory || "خدمات";
-    // توجيه الفئات للأقرب كما أمرت سيدي
     if (cat.includes("ادمن") || cat.includes("تعديل")) cat = "المطور";
     else if (cat.includes("ترفيه") || cat.includes("تسلية")) cat = "العاب";
     else if (cat.includes("معلومات")) cat = "النظام";
     
-    if (cat === categoryName) cmds.push(name);
+    if (cat === categoryName) cmds.push(`• ${name}`);
   });
 
-  msg += `← ${cmds.join(", ")}\n\n`;
-  msg += `————————————————\n`;
-  msg += `اكتب الامر .. لـمعرفة تـفاصيله.\n`;
-  msg += `👑 الـتـوب ايـمـن\n`;
-  msg += `◈ ──────────────── ◈`;
+  msg += cmds.join("\n"); // جعل الأوامر تحت بعضها بشكل أرتب
+  msg += `\n\n─━━━━━━⊱🎀⊰━━━━━━─\n`;
+  msg += `💡 اكتب (اسم الأمر) لمعرفة تفاصيله.`;
 
-  // إرسال الأوامر مع تعطيل الرد الثاني (لا نضع handleReply هنا)
   return api.sendMessage(msg, threadID, messageID);
 };
 
 module.exports.run = async ({ api, event }) => {
   const { threadID, messageID, senderID } = event;
-  const { commands } = global.client;
 
   const validCategories = ["المطور", "النظام", "خدمات", "صور", "العاب"];
-  let msg = `◈ ───『 ديـوان هـبـة الـمـلكـي 』─── ◈\n\n`;
   
+  let msg = `🎀 مرحباً بك في ديوان هـبة 🎀\n`;
+  msg += `طلبـاتك أوامر سيدي أيمن.. ✨\n\n`;
+  
+  const icons = ["👑", "⚙️", "🛠️", "🖼️", "🎮"]; // أيقونات لكل فئة
+
   validCategories.forEach((cat, index) => {
-    msg += `📍 [${index + 1}] ← فـئـة ${cat}\n`;
+    msg += `${icons[index]}  ${index + 1} ╎ فـئـة ${cat}\n`;
   });
 
-  msg += `\n————————————————\n`;
-  msg += `💬 رد بـرقم الـفـئـة لـعرض أوامـرها.\n`;
-  msg += `👑 الـسلطة لـلـتـوب ايـمـن\n`;
-  msg += `◈ ──────────────── ◈`;
+  msg += `\n─━━━━━━⊱🌸⊰━━━━━━─\n`;
+  msg += `💬 رد برقم الفئة لـعرض محتواها.\n`;
+  msg += `👤 الـمطور: أيـمن (الـتـوب)`;
 
   return api.sendMessage(msg, threadID, (err, info) => {
     global.client.handleReply.push({
