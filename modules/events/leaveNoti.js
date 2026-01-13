@@ -1,74 +1,77 @@
+const fs = require("fs-extra");
+const pathModule = require("path");
+const moment = require("moment-timezone");
+
 module.exports.config = {
   name: "leaveNoti",
   eventType: ["log:unsubscribe"],
-  version: "1.0.0",
-  credits: "HĐGN",
-  description: "إشعار مغادرة معرب ومزخرف",
-  dependencies: {
-    "fs-extra": "",
-    "path": ""
-  }
+  version: "1.1.0",
+  credits: "Ayman",
+  description: "إشعار مغادرة معرب ومزخرف مع دعم GIF",
 };
 
-const checkttPath = __dirname + '/../commands/tuongtac/checktt/'
-
 module.exports.onLoad = function () {
-    const { existsSync, mkdirSync } = global.nodemodule["fs-extra"];
-    const { join } = global.nodemodule["path"];
-    const path = join(__dirname, "cache", "leaveGif", "randomgif");
-    if (!existsSync(path)) mkdirSync(path, { recursive: true });
-    return;
-}
+  const cachePath = pathModule.join(__dirname, "cache", "leaveGif", "randomgif");
+  if (!fs.existsSync(cachePath)) fs.mkdirSync(cachePath, { recursive: true });
+};
 
-module.exports.run = async function ({ api, event, Users, Threads }) {
-    if (event.logMessageData.leftParticipantFbId == api.getCurrentUserID()) return;
-    const { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } = global.nodemodule["fs-extra"];
-    const { join } = global.nodemodule["path"];
-    const { threadID } = event;
-    const moment = require("moment-timezone");
-    const time = moment.tz("Asia/Baghdad").format("DD/MM/YYYY || HH:mm:s");
+module.exports.run = async function () {
+  // هذا الأمر فارغ لأن الحدث يعتمد على handleEvent
+};
+
+module.exports.handleEvent = async function ({ api, event, Users, Threads }) {
+  try {
+    const { threadID, logMessageData } = event;
+    const leftID = logMessageData.leftParticipantFbId;
+
+    // لا تتدخل إذا البوت هو الذي خرج
+    if (leftID == api.getCurrentUserID()) return;
+
+    // جلب اسم المستخدم
+    const name = global.data.userName.get(leftID) || await Users.getNameUser(leftID);
+
+    // جلب بيانات الكروب
+    const data = global.data.threadData.get(threadID) || (await Threads.getData(threadID)).data;
+
+    // وقت الإشعار
+    const time = moment.tz("Asia/Baghdad").format("DD/MM/YYYY || HH:mm:ss");
     const hours = moment.tz("Asia/Baghdad").format("HH");
-    const data = global.data.threadData.get(parseInt(threadID)) || (await Threads.getData(threadID)).data;
-    const iduser = event.logMessageData.leftParticipantFbId;
-    const name = global.data.userName.get(iduser) || await Users.getNameUser(iduser);
-    
-    // تعريب الحالات
-    const type = (event.author == iduser) ? "غادر المجموعة" : "تم طرده من قبل المسؤول";
-    
-    const path = join(__dirname, "cache", "leaveGif","randomgif");
-    const pathGif = join(path, `${threadID}`);
-    var msg, formPush
+    const session = hours <= 10 ? "صباحاً" : hours > 10 && hours <= 12 ? "ظهراً" : hours > 12 && hours <= 18 ? "عصراً" : "مساءً";
 
-    if (existsSync(checkttPath + threadID + '.json')) {
-        const threadData = JSON.parse(readFileSync(checkttPath + threadID + '.json'));
-        const userData_total_index = threadData.total.findIndex(e => e.id == iduser);
-        if (userData_total_index != -1) threadData.total.splice(userData_total_index, 1);
-        writeFileSync(checkttPath + threadID + '.json', JSON.stringify(threadData, null, 4));
+    // نوع المغادرة
+    const type = (event.author == leftID) ? "غادر المجموعة" : "تم طرده من قبل المسؤول";
+
+    // إنشاء رسالة مزخرفة حسب الحالة
+    let msg = "";
+    if (event.author == leftID) {
+      msg = `◈ ───『 وداع لطيف 』─── ◈
+◯ ${name} 👋
+◯ ${type}
+⏰ ${time} | ${session}
+◈ ─────────────── ◈`;
+    } else {
+      msg = `◈ ───『 تم الطرد 』─── ◈
+◯ ${name} 🚪
+◯ ${type}
+⏰ ${time} | ${session}
+◈ ─────────────── ◈`;
     }
 
-    // العبارة المعربة والمزخرفة
-    (typeof data.customLeave == "undefined") ? 
-    msg = "╭─────────────╮\n" +
-          "    💎 وداعـاً [ {name} ]\n" +
-          "    ✨ الـحـالـة: {type}\n" +
-          "╰─────────────╯\n" +
-          "⏰ الـوقـت: {time}" : msg = data.customLeave;
-
-    msg = msg
-      .replace(/\{iduser}/g, iduser)
-      .replace(/\{name}/g, name)
-      .replace(/\{type}/g, type)
-      .replace(/\{session}/g, hours <= 10 ? "صباحاً" : hours > 10 && hours <= 12 ? "ظهراً" : hours > 12 && hours <= 18 ? "عصراً" : "مساءً")
-      .replace(/\{time}/g, time);  
-
-    const randomPath = readdirSync(join(__dirname, "cache", "leaveGif", "randomgif"));
-
-    if (existsSync(pathGif)) formPush = { body: msg, attachment: createReadStream(pathGif) }
-    else if (randomPath.length != 0) {
-      const pathRandom = join(__dirname, "cache", "leaveGif", "randomgif",`${randomPath[Math.floor(Math.random() * randomPath.length)]}`);
-      formPush = { body: msg, attachment: createReadStream(pathRandom) }
+    // جلب GIF عشوائي إذا موجود
+    const gifPath = pathModule.join(__dirname, "cache", "leaveGif", "randomgif");
+    let attachment = null;
+    if (fs.existsSync(gifPath)) {
+      const files = fs.readdirSync(gifPath);
+      if (files.length > 0) {
+        const randomGif = pathModule.join(gifPath, files[Math.floor(Math.random() * files.length)]);
+        attachment = fs.createReadStream(randomGif);
+      }
     }
-    else formPush = { body: msg }
 
-    return api.sendMessage(formPush, threadID);
-}
+    // إرسال الرسالة
+    await api.sendMessage({ body: msg, attachment }, threadID);
+
+  } catch (err) {
+    console.log("LeaveNoti Error:", err.message);
+  }
+};
