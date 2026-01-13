@@ -4,10 +4,10 @@ const path = require('path');
 
 module.exports.config = {
   name: "اعلام",
-  version: "3.5.0",
+  version: "4.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "لعبة احزر العلم - نسخة هبة المستقرة",
+  description: "لعبة احزر العلم - نسخة هبة المستقرة مع 40 علم",
   usages: ["اعلام"],
   commandCategory: "فئة الألعاب",
   cooldowns: 5
@@ -19,13 +19,10 @@ const tempImg = path.join(cacheDir, 'flag_game.jpg');
 module.exports.handleReply = async function ({ api, event, handleReply, Currencies }) {
   const { senderID, body, threadID, messageID } = event;
   
-  // التحقق من الإجابة
   if (body.trim() === handleReply.correctAnswer) {
       await Currencies.increaseMoney(senderID, 100);
+      api.sendMessage(`╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n\n✅ إجابة صحيحة!\n🌍 الدولة: ${handleReply.correctAnswer}\n💰 الجائزة: 100 دولار\n\n╰──────────────╯`, threadID, messageID);
       
-      api.sendMessage(`╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n\n✅ إجابة صحيحة مذهلة!\n🌍 الدولة: ${handleReply.correctAnswer}\n💰 الجائزة: 100 دولار\n\n╰──────────────╯`, threadID, messageID);
-      
-      // حذف رسالة السؤال وحذف الكاش
       api.unsendMessage(handleReply.messageID);
       if (fs.existsSync(tempImg)) fs.unlinkSync(tempImg);
   } else {
@@ -36,29 +33,53 @@ module.exports.handleReply = async function ({ api, event, handleReply, Currenci
 module.exports.run = async function ({ api, event }) {
   const { threadID, messageID } = event;
 
-  // قائمة الأعلام (روابط مباشرة وسريعة)
   const questions = [
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Flag_of_Iraq.svg/800px-Flag_of_Iraq.svg.png", answer: "العراق" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Flag_of_Saudi_Arabia.svg/800px-Flag_of_Saudi_Arabia.svg.png", answer: "السعودية" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Flag_of_Egypt.svg/800px-Flag_of_Egypt.svg.png", answer: "مصر" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Flag_of_Palestine.svg/800px-Flag_of_Palestine.svg.png", answer: "فلسطين" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Flag_of_Morocco.svg/800px-Flag_of_Morocco.svg.png", answer: "المغرب" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Flag_of_Algeria.svg/800px-Flag_of_Algeria.svg.png", answer: "الجزائر" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Flag_of_Tunisia.svg/800px-Flag_of_Tunisia.svg.png", answer: "تونس" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Flag_of_the_United_Arab_Emirates.svg/800px-Flag_of_the_United_Arab_Emirates.svg.png", answer: "الامارات" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Flag_of_Germany.svg/800px-Flag_of_Germany.svg.png", answer: "المانيا" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Flag_of_France.svg/800px-Flag_of_France.svg.png", answer: "فرنسا" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Flag_of_Japan.svg/800px-Flag_of_Japan.svg.png", answer: "اليابان" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Flag_of_the_People%27s_Republic_of_China.svg/800px-Flag_of_the_People%27s_Republic_of_China.svg.png", answer: "الصين" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Flag_of_the_United_States.svg/800px-Flag_of_the_United_States.svg.png", answer: "امريكا" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Flag_of_Turkey.svg/800px-Flag_of_Turkey.svg.png", answer: "تركيا" },
-    { image: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Flag_of_Brazil.svg/800px-Flag_of_Brazil.svg.png", answer: "البرازيل" }
+    { image: "https://upload.wikimedia.org/wikipedia/commons/f/f6/Flag_of_Iraq.svg", answer: "العراق" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/0/0d/Flag_of_Saudi_Arabia.svg", answer: "السعودية" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/2/21/Flag_of_Egypt.svg", answer: "مصر" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/0/00/Flag_of_Palestine.svg", answer: "فلسطين" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/2/2c/Flag_of_Morocco.svg", answer: "المغرب" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/7/77/Flag_of_Algeria.svg", answer: "الجزائر" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/c/cb/Flag_of_Tunisia.svg", answer: "تونس" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/c/cb/Flag_of_the_United_Arab_Emirates.svg", answer: "الامارات" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/b/ba/Flag_of_Germany.svg", answer: "المانيا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/c/c3/Flag_of_France.svg", answer: "فرنسا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/9/9e/Flag_of_Japan.svg", answer: "اليابان" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg", answer: "الصين" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/a/a4/Flag_of_the_United_States.svg", answer: "امريكا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/b/b4/Flag_of_Turkey.svg", answer: "تركيا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/0/05/Flag_of_Brazil.svg", answer: "البرازيل" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/0/03/Flag_of_Canada.svg", answer: "كندا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/f/fc/Flag_of_India.svg", answer: "الهند" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/5/5c/Flag_of_Australia.svg", answer: "استراليا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/1/12/Flag_of_Mexico.svg", answer: "المكسيك" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/c/cf/Flag_of_Spain.svg", answer: "اسبانيا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/9/9b/Flag_of_Italy.svg", answer: "ايطاليا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/0/0f/Flag_of_Russia.svg", answer: "روسيا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/4/41/Flag_of_UK.svg", answer: "انجلترا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/3/36/Flag_of_South_Africa.svg", answer: "جنوب افريقيا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/2/2d/Flag_of_Singapore.svg", answer: "سنغافورة" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/9/9e/Flag_of_South_Korea.svg", answer: "كوريا الجنوبية" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/f/ff/Flag_of_Nigeria.svg", answer: "نيجيريا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Flag_of_Argentina.svg", answer: "الارجنتين" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/8/84/Flag_of_Ethiopia.svg", answer: "اثيوبيا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/6/6a/Flag_of_Kenya.svg", answer: "كينيا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/f/f3/Flag_of_Pakistan.svg", answer: "باكستان" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/3/32/Flag_of_Bangladesh.svg", answer: "بنغلاديش" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/9/99/Flag_of_Thailand.svg", answer: "تايلاند" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/9/9c/Flag_of_Malaysia.svg", answer: "ماليزيا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/3/31/Flag_of_Vietnam.svg", answer: "فيتنام" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/f/f2/Flag_of_Netherlands.svg", answer: "هولندا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/2/27/Flag_of_Belgium.svg", answer: "بلجيكا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/6/65/Flag_of_Sweden.svg", answer: "السويد" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/b/bc/Flag_of_Norway.svg", answer: "النرويج" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/1/1a/Flag_of_Finland.svg", answer: "فنلندا" },
+    { image: "https://upload.wikimedia.org/wikipedia/commons/d/d9/Flag_of_Greece.svg", answer: "اليونان" }
   ];
 
   const randomQ = questions[Math.floor(Math.random() * questions.length)];
 
   try {
-    // التأكد من وجود مجلد الكاش
     if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
     const response = await axios.get(randomQ.image, { responseType: "arraybuffer" });
@@ -70,7 +91,6 @@ module.exports.run = async function ({ api, event }) {
     }, threadID, (err, info) => {
       if (err) return console.error(err);
       
-      // تسجيل الرد (HandleReply)
       global.client.handleReply.push({
         name: this.config.name,
         messageID: info.messageID,
