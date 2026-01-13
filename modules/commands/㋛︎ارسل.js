@@ -2,81 +2,67 @@ const moment = require("moment-timezone");
 
 module.exports.config = {
   name: "ارسل",
-  version: "3.1.0",
+  version: "4.1.0",
   hasPermission: 2,
   credits: "Ayman",
-  description: "إصدار مراسيم ملكية مع اختيار الكروب بالرد",
+  description: "إرسال إخطار ملكي لجميع المجموعات بدون هدايا",
   commandCategory: "المطور",
-  usages: "ارسل → اختر رقم → اكتب الرسالة",
-  cooldowns: 5
+  usages: "[النص]",
+  cooldowns: 10
 };
 
-module.exports.run = async function ({ api, event, args, Currencies }) {
+module.exports.run = async function ({ api, event, args }) {
   const { threadID, messageID, senderID } = event;
+
+  // التحقق من صلاحية المطور
   if (!global.config.ADMINBOT.includes(senderID)) {
     return api.sendMessage(
-      "◈ ───『 تـنـبـيـه 』─── ◈\n\n◯ هذا الأمر مخصص للتوب فقط.\n\n◈ ─────────────── ◈",
+      "◈ ───『 تـنـبـيـه 』─── ◈\n\n◯ هذا الأمر مخصص للتوب أيمن فقط.\n\n◈ ─────────────── ◈",
       threadID,
       messageID
     );
   }
 
-  // إذا كتب رسالة مباشرة بعد الرد
-  if (event.messageReply && global.sendList?.[senderID]) {
-    const index = parseInt(event.messageReply.body) - 1;
-    const thread = global.sendList[senderID][index];
+  const content = args.join(" ");
+  if (!content) {
+    return api.sendMessage("◯ الرجاء كتابة نص الإخطار بعد كلمة ارسل.", threadID, messageID);
+  }
 
-    if (!thread) {
-      return api.sendMessage("◯ رقم غير صحيح.", threadID, messageID);
-    }
+  // جلب قائمة المجموعات
+  const threads = await api.getThreadList(100, null, ["INBOX"]);
+  const groups = threads.filter(t => t.isGroup && t.isSubscribed);
 
-    const content = args.join(" ");
-    if (!content) {
-      return api.sendMessage("◯ اكتب نص المرسوم بعد الأمر.", threadID, messageID);
-    }
+  const time = moment.tz("Asia/Baghdad").format("HH:mm:ss - D/MM/YYYY");
+  let count = 0;
+  let errCount = 0;
 
-    const time = moment.tz("Asia/Baghdad").format("HH:mm:ss - D/MM/YYYY");
-    const gift = 50;
+  api.sendMessage(`⌛ جاري توزيع الإخطار الملكي على ${groups.length} مجموعة...`, threadID);
 
-    const msg =
-`◈ ───『 مـرسـوم مـلـكـي 』─── ◈
+  const msg = 
+`◈ ───『 إخـطـار مـلـكـي 』─── ◈
 
-◯ الـرسـالة:
+◯ الـمـحـتـوى:
 ${content}
 
 ◯ الـتـوقـيـت: ${time}
-◯ هـديـة وصول: +${gift}$
 
 ◈ ─────────────── ◈
 │ الآمر: الـتـوب أيمن
 ◈ ─────────────── ◈`;
 
-    await api.sendMessage(msg, thread.threadID);
-    await Currencies.increaseMoney(thread.threadID, gift);
-
-    delete global.sendList[senderID];
-
-    return api.sendMessage(
-      `◈ ───『 تـم الـإرسـال 』─── ◈\n\n◯ الكروب: ${thread.name}\n\n◈ ─────────────── ◈`,
-      threadID
-    );
+  for (const group of groups) {
+    try {
+      await api.sendMessage(msg, group.threadID);
+      count++;
+      // تأخير بسيط لتجنب الحظر
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
+    } catch (e) {
+      errCount++;
+    }
   }
 
-  // عرض قائمة الكروبات
-  const threads = await api.getThreadList(20, null, ["INBOX"]);
-  const groups = threads.filter(t => t.isGroup);
-
-  global.sendList = global.sendList || {};
-  global.sendList[senderID] = groups;
-
-  let list =
-`◈ ───『 قـائـمـة الـكـروبـات 』─── ◈\n\n`;
-
-  groups.forEach((g, i) => {
-    list += `◯ ${i + 1} │ ${g.name}\n`;
-  });
-
-  list += `\n◈ ─────────────── ◈\n│ ←› رد برقم الكروب ثم اكتب:\n│ ←› ارسل [النص]\n◈ ─────────────── ◈`;
-
-  return api.sendMessage(list, threadID, messageID);
+  return api.sendMessage(
+    `◈ ───『 تـم الـتـعـمـيـم 』─── ◈\n\n✅ تم الإرسال لـ: ${count} مجموعة\n❌ فشل الإرسال لـ: ${errCount} مجموعة\n\n◈ ─────────────── ◈`,
+    threadID
+  );
 };
