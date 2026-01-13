@@ -1,78 +1,89 @@
 const fs = require("fs-extra");
-const path = __dirname + '/banking/banking.json';
+const path = __dirname + '/banking/central_vault.json';
 
 module.exports.config = {
   name: "بنك",
-  version: "3.0.0",
+  version: "5.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "نظام بنك هبة المتطور بإدارة المطور ايمن",
+  description: "الخزينة المركزية الموحدة لكل نقاط الألعاب - نسخة التوب",
   commandCategory: "الاموال",
-  usages: "[تسجيل/ايداع/سحب/عرض]",
+  usages: "[تسجيل/ايداع/سحب/عرض/منح]",
   cooldowns: 2
 };
 
 module.exports.onLoad = async () => {
   if (!fs.existsSync(__dirname + '/banking')) fs.mkdirSync(__dirname + '/banking');
-  if (!fs.existsSync(path)) fs.writeFileSync(path, "[]", "utf-8");
+  if (!fs.existsSync(path)) fs.writeFileSync(path, "{}", "utf-8");
 };
 
 module.exports.run = async function({ api, event, args, Currencies, Users }) {
   const { threadID, messageID, senderID } = event;
-  const adminBot = global.config.ADMINBOT; // جلب آيدي المطور ايمن
-  const userData = JSON.parse(fs.readFileSync(path));
-  const laisuat = 0.05; // نسبة الفائدة
-  
-  // دالة البحث عن الحساب
-  const findUser = userData.find(i => i.senderID == senderID);
+  let vault = JSON.parse(fs.readFileSync(path));
+  const isTop = global.config.ADMINBOT.includes(senderID);
 
-  // --- نظام المدير العام (ايمن) ---
-  if (adminBot.includes(senderID) && args[0] == "مدير") {
-      return api.sendMessage(`◈ ───『 إدارة البـنـك 』─── ◈\n\n◯ أهلاً بك سيدي المدير العام 『 ايـمـن 』\n◯ خزينة البنك تحت تصرفك بالكامل\n◯ رصيدك الحالي: ∞ (لانهائي)\n\n◈ ─────────────── ◈`, threadID, messageID);
-  }
+  // التأكد من وجود حساب في الخزينة
+  if (!vault[senderID]) vault[senderID] = { bank_balance: 0, last_interest: Date.now() };
 
   switch(args[0]) {
     case 'تسجيل': {
-      if (findUser) return api.sendMessage("◯ لديك حساب بالفعل في بنك هبة 🏦", threadID, messageID);
-      userData.push({ senderID: senderID, money: 0, time: Date.now() });
-      fs.writeFileSync(path, JSON.stringify(userData, null, 2));
-      return api.sendMessage("◈ ───『 بـنـك هـبـة 』─── ◈\n\n◯ تم فتح حسابك بنجاح\n◯ ابدأ بإيداع الأموال لجمع الأرباح ✨\n\n◈ ─────────────── ◈", threadID, messageID);
+      return api.sendMessage("◈ ──『 الـبـنـك الـمـركـزي 』── ◈\n\n◯ حسابك مفعل تلقائياً ومرتبط بكل الألعاب\n◯ أي نقطة تربحها في (اعلام/محاكي) تظهر هنا\n\n◈ ─────────────── ◈", threadID);
     }
 
     case 'عرض': {
-      if (!findUser) return api.sendMessage("◯ سجل أولاً عبر كتابة: بنك تسجيل", threadID, messageID);
-      return api.sendMessage(`◈ ───『 رصـيـدك البنـكي 』─── ◈\n\n◯ رصيدك المودع: ${findUser.money}$\n◯ نسبة الفائدة: ${laisuat}%\n◯ الحالة: مستثمر نشط ✨\n\n◈ ─────────────── ◈`, threadID, messageID);
+      // جلب النقاط من النظام الموحد (التي جمعها من الألعاب)
+      let pocketMoney = (await Currencies.getData(senderID)).money || 0;
+      let bankMoney = vault[senderID].bank_balance;
+      
+      let msg = `◈ ──『 خـزيـنـة: ${isTop ? "الـتـوب ايـمـن" : "الـمـسـتـخـدم"} 』── ◈\n\n`;
+      msg += `💰 نـقاط الألعاب (بجيبك): ${pocketMoney}$\n`;
+      msg += `🏦 الـمـودع فـي البـنـك: ${bankMoney}$\n`;
+      msg += `📈 الإجمالي الشامل: ${pocketMoney + bankMoney}$\n\n`;
+      msg += `│←› نـظـام مـوحـد بـإدارة ايـمـن 👑\n`;
+      msg += `◈ ─────────────── ◈`;
+      return api.sendMessage(msg, threadID, messageID);
     }
 
     case 'ايداع': {
-      const moneyInput = parseInt(args[1]);
-      if (!moneyInput || moneyInput < 50) return api.sendMessage("◯ أقل مبلغ للإيداع هو 50$ 💰", threadID, messageID);
-      if (!findUser) return api.sendMessage("◯ سجل حسابك أولاً يا غالي", threadID, messageID);
+      let pocketMoney = (await Currencies.getData(senderID)).money || 0;
+      let depositAmt = args[1] == "كل" ? pocketMoney : parseInt(args[1]);
+
+      if (!depositAmt || depositAmt <= 0 || depositAmt > pocketMoney) 
+        return api.sendMessage("◯ المبلغ غير صحيح أو جيبك فارغ!", threadID);
+
+      await Currencies.decreaseMoney(senderID, depositAmt);
+      vault[senderID].bank_balance += depositAmt;
+      fs.writeFileSync(path, JSON.stringify(vault, null, 2));
       
-      let userMoney = (await Currencies.getData(senderID)).money;
-      if (userMoney < moneyInput) return api.sendMessage(`◯ رصيدك الحالي لا يكفي لإيداع ${moneyInput}$`, threadID, messageID);
-      
-      await Currencies.decreaseMoney(senderID, moneyInput);
-      findUser.money += moneyInput;
-      fs.writeFileSync(path, JSON.stringify(userData, null, 2));
-      return api.sendMessage(`◈ ───『 تـم الإيـداع 』─── ◈\n\n◯ تم إيداع: ${moneyInput}$ بنجاح\n◯ رصيدك البنكي الحالي: ${findUser.money}$\n\n◈ ─────────────── ◈`, threadID, messageID);
+      return api.sendMessage(`✅ تم نقل ${depositAmt}$ من نقاط الألعاب إلى الخزينة المركزية بنجاح.`, threadID);
     }
 
     case 'سحب': {
-      const moneyPull = parseInt(args[1]);
-      if (!moneyPull || moneyPull < 50) return api.sendMessage("◯ أقل مبلغ للسحب هو 50$ 💰", threadID, messageID);
-      if (!findUser) return api.sendMessage("◯ ليس لديك حساب بنكي", threadID, messageID);
+      let bankMoney = vault[senderID].bank_balance;
+      let withdrawAmt = args[1] == "كل" ? bankMoney : parseInt(args[1]);
+
+      if (!withdrawAmt || withdrawAmt <= 0 || withdrawAmt > bankMoney) 
+        return api.sendMessage("◯ رصيدك في البنك لا يكفي!", threadID);
+
+      await Currencies.increaseMoney(senderID, withdrawAmt);
+      vault[senderID].bank_balance -= withdrawAmt;
+      fs.writeFileSync(path, JSON.stringify(vault, null, 2));
       
-      if (findUser.money < moneyPull) return api.sendMessage("◯ رصيدك في البنك لا يكفي لهذا السحب", threadID, messageID);
-      
-      await Currencies.increaseMoney(senderID, moneyPull);
-      findUser.money -= moneyPull;
-      fs.writeFileSync(path, JSON.stringify(userData, null, 2));
-      return api.sendMessage(`◈ ───『 تـم الـسـحـب 』─── ◈\n\n◯ تم سحب: ${moneyPull}$\n◯ رصيدك المتبقي: ${findUser.money}$\n\n◈ ─────────────── ◈`, threadID, messageID);
+      return api.sendMessage(`✅ تم سحب ${withdrawAmt}$ إلى جيبك لاستخدامها في الألعاب.`, threadID);
     }
 
-    default: {
-      return api.sendMessage(`◈ ───『 بـنـك هـبـة 』─── ◈\n\n◯ [ بنك تسجيل ] : لفتح حساب جديد\n◯ [ بنك عرض ] : لرؤية رصيدك\n◯ [ بنك ايداع ] : لحفظ أموالك بالبنك\n◯ [ بنك سحب ] : لاستعادة أموالك\n\n◯ المطور والمدير: 『 ايـمـن 』\n◈ ─────────────── ◈`, threadID, messageID);
+    // --- صلاحيات التوب فقط ---
+    case 'منح': {
+      if (!isTop) return api.sendMessage("◯ هـذا الأمـر خـاص بـالـتـوب ايـمـن فـقـط 👑", threadID);
+      let amount = parseInt(args[1]);
+      let mention = Object.keys(event.mentions)[0];
+      if (!mention || !amount) return api.sendMessage("◯ مـنـشـن الـشـخـص واكـتـب الـمـبـلغ", threadID);
+      
+      await Currencies.increaseMoney(mention, amount);
+      return api.sendMessage(`👑 سيدي التوب.. تم منح ${amount}$ للمستخدم المذكور من خزينة الإدارة.`, threadID);
     }
+
+    default:
+      return api.sendMessage(`◈ ──『 بـنـك هـبـة الـمـركـزي 』── ◈\n\n◯ [ بنك عرض ] : كشف الحساب الشامل\n◯ [ بنك ايداع ] : نقل النقاط للخزينة\n◯ [ بنك سحب ] : استعادة النقاط للعب\n\n│←› الـمـديـر الـعـام: الـتـوب ايـمـن 👑\n◈ ─────────────── ◈`, threadID);
   }
 };
