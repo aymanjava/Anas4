@@ -1,19 +1,38 @@
 module.exports.config = {
-  name: "2024",
-  version: "1.0.0",
+  name: "سنة",
+  version: "2.0.0",
   hasPermssion: 0,
-  credits: "عمر",
-  description: "العد التنازلي للسنة الجديدة",
+  credits: "Ayman",
+  description: "العد التنازلي الإمبراطوري للسنة الجديدة 2027",
   commandCategory: "خدمات",
   cooldowns: 5
-}
+};
 
 module.exports.run = function ({ event, api }) {
-    const t = Date.parse("January 1, 2024 00:00:00") - Date.parse(new Date());
-    const seconds = Math.floor( (t/1000) % 60 );
-    const minutes = Math.floor( (t/1000/60) % 60 );
-    const hours = Math.floor( (t/(1000*60*60)) % 24 );
-    const days = Math.floor( t/(1000*60*60*24) );
+    // تحديد موعد العام الجديد القادم 2027
+    const nextYear = 2027;
+    const t = Date.parse(`January 1, ${nextYear} 00:00:00`) - Date.parse(new Date());
+    
+    // حساب الوقت المتبقي
+    const seconds = Math.floor((t / 1000) % 60);
+    const minutes = Math.floor((t / 1000 / 60) % 60);
+    const hours = Math.floor((t / (1000 * 60 * 60)) % 24);
+    const days = Math.floor(t / (1000 * 60 * 60 * 24));
 
-    return api.sendMessage(`「الوقت المتبقي للسنة الجديدة」\n» ${days} يوم , ${hours} ساعة , ${minutes} دقيقة و ${seconds} ثانية «`, event.threadID, event.messageID);
-} 
+    let msg = `┏━━━━━━ ⏳ ━━━━━━┓\n   سـاعـة الـصـفـر الـمـلـكـيـة\n┗━━━━━━ ⏳ ━━━━━━┛\n\n` +
+              `🌟 سـيـدي، الـوقـت الـمـتـبـقي لـحـلول\n   عـام الـنـصـر والـمـجـد ${nextYear}:\n\n` +
+              `🗓️ الأيـام : ${days}\n` +
+              `⌚ الـسـاعـات: ${hours}\n` +
+              `⏳ الـدقـائق: ${minutes}\n` +
+              `⏱️ الـثـوانـي: ${seconds}\n\n` +
+              `————————————————\n` +
+              `│←› الـسـيـادة لـلـتـوب ايـمـن 👑\n` +
+              `◈ ──────────────── ◈`;
+
+    // في حال انتهى الوقت وحل العام الجديد
+    if (t <= 0) {
+        return api.sendMessage(`🎊 كـل عـام وأنـت الإمـبـراطـور الـمـطـلـق ${nextYear} 👑!`, event.threadID, event.messageID);
+    }
+
+    return api.sendMessage(msg, event.threadID, event.messageID);
+}
