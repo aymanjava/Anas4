@@ -3,8 +3,8 @@ const fs = require("fs-extra");
 const path = require("path");
 
 module.exports.config = {
-  name: "قرآن",
-  version: "2.5.0",
+  name: "قران",
+  version: "2.6.0",
   hasPermssion: 0,
   credits: "Ayman",
   description: "إرسال تلاوة كاملة (حتى 4 دقائق) بصوت ياسر الدوسري",
@@ -16,7 +16,6 @@ module.exports.config = {
 module.exports.run = async function({ api, event }) {
   const { threadID, messageID } = event;
 
-  // تم اختيار هذه السور بعناية لأن مدتها كاملة (بصوت الدوسري) لا تتجاوز 4-5 دقائق
   const shortSurahs = [
     { name: "النبأ", no: "078" }, { name: "النازعات", no: "079" }, { name: "عبس", no: "080" },
     { name: "التكوير", no: "081" }, { name: "الانفطار", no: "082" }, { name: "المطففين", no: "083" },
@@ -38,19 +37,19 @@ module.exports.run = async function({ api, event }) {
   try {
     const randomSurah = shortSurahs[Math.floor(Math.random() * shortSurahs.length)];
     const audioUrl = `https://server11.mp3quran.net/yasser/${randomSurah.no}.mp3`;
-    const coverUrl = `https://i.imgur.com/G55vN66.jpeg`; // صورة الشيخ ياسر
+    const coverUrl = `https://i.imgur.com/G55vN66.jpeg`;
 
     const audioPath = path.join(__dirname, "cache", `quran_${randomSurah.no}.mp3`);
     const coverPath = path.join(__dirname, "cache", `cover_${randomSurah.no}.jpg`);
 
-    // تحميل بجودة عالية
     const [audioRes, coverRes] = await Promise.all([
       axios.get(audioUrl, { responseType: "arraybuffer" }),
       axios.get(coverUrl, { responseType: "arraybuffer" })
     ]);
 
-    fs.writeFileSync(audioPath, Buffer.from(audioRes.data, "utf-8"));
-    fs.writeFileSync(coverPath, Buffer.from(coverRes.data, "utf-8"));
+    // ⚡ بدون ترميز نصي
+    fs.writeFileSync(audioPath, Buffer.from(audioRes.data));
+    fs.writeFileSync(coverPath, Buffer.from(coverRes.data));
 
     api.setMessageReaction("✅", messageID, () => {}, true);
 
@@ -64,7 +63,7 @@ module.exports.run = async function({ api, event }) {
       setTimeout(() => {
         if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath);
         if (fs.existsSync(coverPath)) fs.unlinkSync(coverPath);
-      }, 20000);
+      }, 30000);
     }, messageID);
 
   } catch (err) {
