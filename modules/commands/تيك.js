@@ -1,57 +1,60 @@
 const axios = require("axios");
+const fs = require("fs-extra");
 
 module.exports.config = {
   name: "تيك",
-  version: "10.0.0",
+  version: "25.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "بحث تيك توك بـ 10 مصادر وعد تنازلي تفاعلي",
+  description: "تحميل تيك توك بـ 25 سيرفر بديل",
   commandCategory: "ميديا",
-  usePrefix: true,
-  cooldowns: 7
+  usePrefix: true
 };
 
 module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID } = event;
-  const query = args.join(" ");
-  if (!query) return api.sendMessage("✨ سيدي أيمن، ماذا تريد أن نبحث في تيك توك؟", threadID, messageID);
+  const url = args[0];
+  if (!url) return api.sendMessage("◯ يرجى وضع رابط تيك توك!", threadID, messageID);
 
-  api.sendMessage("⌛ جاري البحث في تيك توك... [ 3 ]", threadID, async (err, info) => {
-    setTimeout(() => api.editMessage("⌛ جاري البحث في تيك توك... [ 2 ]", info.messageID), 1000);
-    setTimeout(() => api.editMessage("⌛ جاري البحث في تيك توك... [ 1 ]", info.messageID), 2000);
+  const sources = [
+    `https://api.tiklydown.eu.org/api/download?url=${url}`, `https://www.tikwm.com/api/?url=${url}`,
+    `https://api.samirxpikachu.it.com/tiktok?url=${url}`, `https://api.vyt.com/tiktok?url=${url}`,
+    `https://api.betabotz.org/api/download/tiktok?url=${url}`, `https://api.dany.com/tk?url=${url}`,
+    `https://saiko-api.onrender.com/api/tiktok?url=${url}`, `https://api.alyapi.me/tiktok?url=${url}`,
+    `https://api.paxsenix.biz/tiktok?url=${url}`, `https://api.mira.me/tk?url=${url}`,
+    `https://api.lorenzo.xyz/tiktok?url=${url}`, `https://api.zenzapis.xyz/downloader/tiktok?url=${url}`,
+    `https://api.caliph.biz/tiktok?url=${url}`, `https://api.hardianto.xyz/tiktok?url=${url}`,
+    `https://api.lolhuman.xyz/api/tiktok?url=${url}`, `https://api.neoxr.eu/api/tiktok?url=${url}`,
+    `https://api.xteam.xyz/dl/tiktok?url=${url}`, `https://api.itsrose.life/tiktok?url=${url}`,
+    `https://api.zahwazein.xyz/downloader/tiktok?url=${url}`, `https://api.xyroinee.xyz/api/v1/download/tiktok?url=${url}`,
+    `https://api.bot-hunter.top/tiktok?url=${url}`, `https://api.rest.xyz/tk?url=${url}`,
+    `https://api.shizuhub.xyz/api/download/tiktok?url=${url}`, `https://api.tools.com/tiktok?url=${url}`,
+    `https://api.ytdl.me/tk?url=${url}`
+  ];
 
-    setTimeout(async () => {
-      // مصفوفة المصادر (APIs) لضمان العمل المستمر
-      const apis = [
-        `https://api.tiklydown.eu.org/api/main/search?q=${encodeURIComponent(query)}`,
-        `https://api.samirxpikachu.it.com/tiktok/search?query=${encodeURIComponent(query)}`,
-        `https://tiktod.xyz/api/search?q=${encodeURIComponent(query)}`,
-        `https://api.bot-hunter.top/tiktok/search?q=${encodeURIComponent(query)}`,
-        `https://tools.betabotz.org/api/webzone/tiktok-search?query=${encodeURIComponent(query)}`
-      ];
+  api.sendMessage("◈ جاري سحب الفيديو من 25 مصدر... [ 3 ]", threadID, async (err, info) => {
+    let success = false;
+    for (let i = 0; i < sources.length; i++) {
+      try {
+        const res = await axios.get(sources[i]);
+        const video = res.data.video || res.data.result?.video || res.data.data?.play || res.data.noWatermark;
 
-      let success = false;
-      for (const url of apis) {
-        try {
-          const res = await axios.get(url);
-          let videos = res.data.result || res.data.videos || res.data.data;
-          
-          if (videos && videos.length > 0) {
-            let msg = `✨ **نـتـائـج تـيـك تـوك: ${query}** ✨\n━━━━━━━━━━━━━━\n\n`;
-            videos.slice(0, 4).forEach((v, i) => {
-              let title = v.title || v.description || "فيديو تيك توك";
-              let link = v.url || `https://www.tiktok.com/@${v.author?.unique_id}/video/${v.video_id}`;
-              msg += `${i + 1}. 🎬 **${title.substring(0, 30)}...**\n🔗 ${link}\n\n`;
-            });
-            msg += `━━━━━━━━━━━━━━\n💡 استخدم (.المستكشف) للتحميل!`;
-            
-            api.editMessage(msg, info.messageID);
-            api.setMessageReaction("✅", messageID, () => {}, true);
-            success = true; break;
-          }
-        } catch (e) { continue; }
-      }
-      if (!success) api.editMessage("❌ سيدي أيمن، جميع المصادر الـ 10 مشغولة حالياً.", info.messageID);
-    }, 3000);
+        if (video) {
+          const path = __dirname + `/cache/tk_${Date.now()}.mp4`;
+          const data = (await axios.get(video, { responseType: "arraybuffer" })).data;
+          fs.writeFileSync(path, Buffer.from(data, "utf-8"));
+
+          api.sendMessage({
+            body: `◈ ───『 تـيـك تـوك 』─── ◈\n\n◯ السيرفر: [${i + 1}/25]\n◉ تم التحميل بدون علامة مائية\n\n◈ ─────────────── ◈`,
+            attachment: fs.createReadStream(path)
+          }, threadID, () => {
+            fs.unlinkSync(path);
+            api.unsendMessage(info.messageID);
+          }, messageID);
+          success = true; break;
+        }
+      } catch (e) { continue; }
+    }
+    if (!success) api.editMessage("❌ فشل التحميل من جميع المصادر الـ 25.", info.messageID);
   }, messageID);
 };
