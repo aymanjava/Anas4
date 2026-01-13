@@ -3,74 +3,79 @@ const fs = require('fs-extra');
 const path = require('path');
 
 module.exports.config = {
-    name: "تخيل",
-    version: "1.0",
-    hasPermission: 0,
-    credits: "ǺᎩᎧᏬᏰ",
-    description: "يرسم صور من نص معين مع التحكم في الأسلوب.",
-    commandCategory: "تخيل",
-    usages: "[النص] [رقم الاسلوب] [حجم الصورة (rto)]",
-    cooldowns: 5
+    name: "تخيلي",
+    version: "2.5.0",
+    hasPermssion: 0,
+    credits: "Ayman",
+    description: "توليد صور بالذكاء الاصطناعي بأوامر التوب",
+    commandCategory: "صور",
+    usages: "[النص] [رقم الأسلوب 1-20] [الحجم 1-3]",
+    cooldowns: 15
 };
 
-module.exports.handleEvent = async function ({ api, event }) {
+module.exports.run = async function ({ api, event, args, Currencies }) {
+    const { threadID, messageID, senderID } = event;
+    const reward = 10; // منحة تقشفية للصور الفخمة
 
-
-    if (args.length < 2) {
-        api.sendMessage("جرب [ماذا تريد تخيله] [رقم الأسلوب] [حجم الصورة (rto)]", event.threadID, event.messageID);
-        return;
+    if (args.length < 1) {
+        return api.sendMessage("◈ ───『 تـنـبـيـه 』─── ◈\n\n⚠️ سيدي، يرجى كتابة ما تريد تخيله.\nمثال: .تخيلي رجل فضاء 1 1\n\n◈ ──────────────── ◈", threadID, messageID);
     }
 
     try {
-        const ayoub = args.slice(0, -1).join(" ");
-        const translateURL = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(ayoub)}`;
+        // تحديد الأسلوب والحجم (افتراضياً 1)
+        let rto = args.pop(); 
+        let style = args.pop();
+        let prompt = args.join(" ");
 
-        try {
-            const translationResponse = await axios.get(translateURL);
-            const ayoubzx = translationResponse.data[0][0][0];
-            const style = args[args.length - 2];
-            let rto = args[args.length - 1];
-
-            if (!rto || isNaN(rto)) {
-                rto = 1; 
-            } else {
-                rto = parseInt(rto);
-            }
-
-            const sex = {
-                prompt: ayoubzx,
-                sty: style,
-                rto: rto
-            };
-
-            api.sendMessage("🕟 | يـرجـى الانـتـظـار", event.threadID, event.messageID);
-
-            const ninoo = await axios.post("https://app-dodogen-835c6bdca048.herokuapp.com/gen", sex);
-            const generatedImages = ninoo.data.url;
-
-            const imgData = [];
-
-            for (let i = 0; i < generatedImages.length; i++) {
-                const imgUrl = generatedImages[i];
-                const imgResponse = await axios.get(imgUrl, { responseType: 'arraybuffer' });
-                const imgPath = path.join(__dirname, 'cache', `${i + 1}.jpg`);
-                await fs.outputFile(imgPath, imgResponse.data);
-                imgData.push(fs.createReadStream(imgPath));
-            }
-
-            await api.sendMessage({
-                body: `🖼️ | إليك الصور الناتجة عن النص "${ayoub}" بأسلوب رقم ${style} وحجم الصورة ${rto} مع ${sex}:`,
-                attachment: imgData
-            }, event.threadID, event.messageID);
-
-        } catch (error) {
-            console.error(error);
-            await api.sendMessage(`❌ حدث خطأ\n\nخطأ: ${error.message}`, event.threadID);
+        // التأكد من أن المدخلات أرقام، وإلا نعتبرها جزءاً من النص
+        if (isNaN(rto)) {
+            prompt += " " + style + " " + rto;
+            style = 1;
+            rto = 1;
+        } else if (isNaN(style)) {
+            prompt += " " + style;
+            style = rto;
+            rto = 1;
         }
+
+        api.sendMessage("🕟 | جاري استحضار الخيال الإمبراطوري.. انتظر سيدي.", threadID, messageID);
+
+        // الترجمة التلقائية للإنجليزية لضمان دقة الـ API
+        const translation = await axios.get(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(prompt)}`);
+        const enPrompt = translation.data[0][0][0];
+
+        const res = await axios.post("https://app-dodogen-835c6bdca048.herokuapp.com/gen", {
+            prompt: enPrompt,
+            sty: style || 1,
+            rto: rto || 1
+        });
+
+        const images = res.data.url;
+        const attachment = [];
+        const cacheDir = path.join(__dirname, 'cache', `imagine_${senderID}`);
+        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+
+        for (let i = 0; i < images.length; i++) {
+            const imgPath = path.join(cacheDir, `${i}.jpg`);
+            const imgRes = await axios.get(images[i], { responseType: 'arraybuffer' });
+            await fs.outputFile(imgPath, imgRes.data);
+            attachment.push(fs.createReadStream(imgPath));
+        }
+
+        await Currencies.increaseMoney(senderID, reward);
+
+        let msg = `◈ ───『 الـخـيال الإمـبـراطـوري 』─── ◈\n\n` +
+                  `✨ الـتـخـيل: ${prompt}\n` +
+                  `🎨 الأسـلوب: ${style} | 📐 الـحـجم: ${rto}\n\n` +
+                  `💰 مـنـحـة الإبداع: +${reward}$\n` +
+                  ` ———————————————\n` +
+                  `│←› الـقـيـصر: الـتـوب ايـمـن 👑\n` +
+                  `◈ ──────────────── ◈`;
+
+        return api.sendMessage({ body: msg, attachment }, threadID, () => fs.removeSync(cacheDir), messageID);
+
     } catch (error) {
         console.error(error);
-        await api.sendMessage(`❌ حدث خطأ\n\nخطأ: ${error.message}`, event.threadID);
+        return api.sendMessage(`⚠️ سيدي، خوادم الخيال مشغولة حالياً، حاول لاحقاً.`, threadID, messageID);
     }
 };
-
-module.exports.run = async function({api, event}) {};
