@@ -2,50 +2,81 @@ const moment = require("moment-timezone");
 
 module.exports.config = {
   name: "ارسل",
-  version: "3.0.0",
-  hasPermssion: 2,
+  version: "3.1.0",
+  hasPermission: 2,
   credits: "Ayman",
-  description: "إصدار المراسيم الملكية للمستخدمين أو المجموعات",
+  description: "إصدار مراسيم ملكية مع اختيار الكروب بالرد",
   commandCategory: "المطور",
-  usages: "[للمستخدم / للكروب] [الأيدي] [الرسالة]",
-  cooldowns: 5,
+  usages: "ارسل → اختر رقم → اكتب الرسالة",
+  cooldowns: 5
 };
 
-module.exports.run = async function({ api, event, args, Currencies }) {
-    const { threadID, messageID, senderID } = event;
-    const isTop = global.config.ADMINBOT.includes(senderID);
+module.exports.run = async function ({ api, event, args, Currencies }) {
+  const { threadID, messageID, senderID } = event;
+  if (!global.config.ADMINBOT.includes(senderID)) {
+    return api.sendMessage(
+      "◈ ───『 تـنـبـيـه 』─── ◈\n\n◯ هذا الأمر مخصص للتوب فقط.\n\n◈ ─────────────── ◈",
+      threadID,
+      messageID
+    );
+  }
 
-    // التحقق من السيادة (التوب فقط)
-    if (!isTop) {
-        return api.sendMessage(`◈ ───『 تـنـبـيـه 』─── ◈\n\n⚠️ عذراً، المراسيم الملكية تصدر فقط من الـتـوب ايـمـن 👑\n\n◈ ──────────────── ◈`, threadID, messageID);
+  // إذا كتب رسالة مباشرة بعد الرد
+  if (event.messageReply && global.sendList?.[senderID]) {
+    const index = parseInt(event.messageReply.body) - 1;
+    const thread = global.sendList[senderID][index];
+
+    if (!thread) {
+      return api.sendMessage("◯ رقم غير صحيح.", threadID, messageID);
     }
 
-    const type = args[0];
-    const targetID = args[1];
-    const messageContent = args.slice(2).join(" ");
+    const content = args.join(" ");
+    if (!content) {
+      return api.sendMessage("◯ اكتب نص المرسوم بعد الأمر.", threadID, messageID);
+    }
+
     const time = moment.tz("Asia/Baghdad").format("HH:mm:ss - D/MM/YYYY");
-    const gift = 50; // مكافأة رمزية للمستلم (أخذ نقاط قليلة)
+    const gift = 50;
 
-    if (!type || !targetID || !messageContent) {
-        return api.sendMessage(`◈ ───『 مـسـاعـد الـإرسـال 』─── ◈\n\nيرجى استخدام الصيغة التالية:\n│←› ارسل للمستخدم [ID] [النص]\n│←› ارسل للكروب [ID] [النص]\n\n◈ ──────────────── ◈`, threadID, messageID);
-    }
+    const msg =
+`◈ ───『 مـرسـوم مـلـكـي 』─── ◈
 
-    const formattedMsg = `◈ ───『 مـرسـوم مـلـكـي 』─── ◈\n\n` +
-                         `📜 الـرسـالة: ${messageContent}\n\n` +
-                         `⏰ الـتـوقـيـت: ${time}\n` +
-                         `💰 هـديـة وصول: +${gift}$\n` +
-                         ` ———————————————\n` +
-                         `│←› الآمر: الـتـوب ايـمـن 👑\n` +
-                         `◈ ──────────────── ◈`;
+◯ الـرسـالة:
+${content}
 
-    try {
-        await api.sendMessage(formattedMsg, targetID);
-        
-        // منح مكافأة للمستلم لتعزيز الولاء للتوب
-        await Currencies.increaseMoney(targetID, gift);
+◯ الـتـوقـيـت: ${time}
+◯ هـديـة وصول: +${gift}$
 
-        return api.sendMessage(`◈ ───『 تـم الـتـنـفـيـذ 』─── ◈\n\n✅ تم إيصال المرسوم إلى ${type == 'للمستخدم' ? 'العضو' : 'المجموعة'}: [ ${targetID} ]\n\n◈ ──────────────── ◈`, threadID, messageID);
-    } catch (error) {
-        return api.sendMessage(`❌ فشل الإرسال، سيدي. تأكد من الأيدي أو أن البوت موجود في تلك المجموعة.`, threadID, messageID);
-    }
+◈ ─────────────── ◈
+│ الآمر: الـتـوب أيمن
+◈ ─────────────── ◈`;
+
+    await api.sendMessage(msg, thread.threadID);
+    await Currencies.increaseMoney(thread.threadID, gift);
+
+    delete global.sendList[senderID];
+
+    return api.sendMessage(
+      `◈ ───『 تـم الـإرسـال 』─── ◈\n\n◯ الكروب: ${thread.name}\n\n◈ ─────────────── ◈`,
+      threadID
+    );
+  }
+
+  // عرض قائمة الكروبات
+  const threads = await api.getThreadList(20, null, ["INBOX"]);
+  const groups = threads.filter(t => t.isGroup);
+
+  global.sendList = global.sendList || {};
+  global.sendList[senderID] = groups;
+
+  let list =
+`◈ ───『 قـائـمـة الـكـروبـات 』─── ◈\n\n`;
+
+  groups.forEach((g, i) => {
+    list += `◯ ${i + 1} │ ${g.name}\n`;
+  });
+
+  list += `\n◈ ─────────────── ◈\n│ ←› رد برقم الكروب ثم اكتب:\n│ ←› ارسل [النص]\n◈ ─────────────── ◈`;
+
+  return api.sendMessage(list, threadID, messageID);
 };
