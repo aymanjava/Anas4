@@ -1,61 +1,61 @@
 const axios = require("axios");
 const fs = require("fs-extra");
-const ytdl = require("@distube/ytdl-core"); // استخدمت النسخة المثبتة عندك في الملف
 
 module.exports.config = {
   name: "يوتيوب",
-  version: "2.0.0",
+  version: "25.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "تحميل فيديو من يوتيوب بجودة عالية",
+  description: "تحميل يوتيوب بـ 25 سيرفر بديل",
   commandCategory: "ميديا",
-  usePrefix: true,
-  cooldowns: 15
+  usePrefix: true
 };
 
 module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID } = event;
   const url = args[0];
+  if (!url) return api.sendMessage("◯ يرجى وضع رابط يوتيوب!", threadID, messageID);
 
-  if (!url) return api.sendMessage("✨ يرجى وضع رابط فيديو يوتيوب بعد الأمر.\nمثال: .يوتيوب [رابط الفيديو]", threadID, messageID);
+  // قائمة الـ 25 API والمصادر البديلة
+  const sources = [
+    `https://api.vyt.com/yt?url=${url}`, `https://api.samirxpikachu.it.com/ytdl?url=${url}`,
+    `https://api.betabotz.org/api/download/ytmp4?url=${url}`, `https://api.shizuhub.xyz/api/download/ytmp4?url=${url}`,
+    `https://api.dany.com/ytmp4?url=${url}`, `https://api.rest.xyz/yt?url=${url}`,
+    `https://api.xyroinee.xyz/api/v1/download/ytmp4?url=${url}`, `https://api.bot-hunter.top/yt?url=${url}`,
+    `https://saiko-api.onrender.com/api/ytdl?url=${url}`, `https://api.alyapi.me/ytmp4?url=${url}`,
+    `https://api.ytdl.me/dl?url=${url}`, `https://api.tools.com/ytmp4?url=${url}`,
+    `https://api.popcat.xyz/ytdl?url=${url}`, `https://api.paxsenix.biz/ytmp4?url=${url}`,
+    `https://api.mira.me/yt?url=${url}`, `https://api.kriz.xyz/yt?url=${url}`,
+    `https://api.lorenzo.xyz/ytmp4?url=${url}`, `https://api.zenzapis.xyz/downloader/ytmp4?url=${url}`,
+    `https://api.caliph.biz/ytmp4?url=${url}`, `https://api.hardianto.xyz/ytmp4?url=${url}`,
+    `https://api.lolhuman.xyz/api/ytvideo?url=${url}`, `https://api.neoxr.eu/api/ytv?url=${url}`,
+    `https://api.xteam.xyz/dl/ytmp4?url=${url}`, `https://api.itsrose.life/ytmp4?url=${url}`,
+    `https://api.zahwazein.xyz/downloader/ytmp4?url=${url}`
+  ];
 
-  // بدء العد التنازلي التفاعلي
-  api.sendMessage("⏳ جاري المعالجة... [ 3 ]", threadID, async (err, info) => {
-    
-    setTimeout(() => api.editMessage("⏳ جاري المعالجة... [ 2 ]", info.messageID), 1000);
-    setTimeout(() => api.editMessage("⏳ جاري المعالجة... [ 1 ]", info.messageID), 2000);
-
-    setTimeout(async () => {
+  api.sendMessage("◈ جاري الفحص في 25 سيرفر تحميل... [ 3 ]", threadID, async (err, info) => {
+    let success = false;
+    for (let i = 0; i < sources.length; i++) {
       try {
-        const path = __dirname + `/cache/yt_${Date.now()}.mp4`;
-        
-        // جلب معلومات الفيديو أولاً للتأكد من حجمه وصلاحيته
-        const videoInfo = await ytdl.getInfo(url);
-        const title = videoInfo.videoDetails.title;
+        const res = await axios.get(sources[i]);
+        const downloadUrl = res.data.result || res.data.url || res.data.data?.url || res.data.link;
 
-        api.editMessage(`🚀 جاري تحميل: ${title.substring(0, 30)}...`, info.messageID);
+        if (downloadUrl) {
+          const path = __dirname + `/cache/yt_${Date.now()}.mp4`;
+          const vid = (await axios.get(downloadUrl, { responseType: "arraybuffer" })).data;
+          fs.writeFileSync(path, Buffer.from(vid, "utf-8"));
 
-        // عملية التحميل
-        const stream = ytdl(url, { filter: 'audioandvideo', quality: 'highest' });
-        const fileStream = fs.createWriteStream(path);
-
-        stream.pipe(fileStream);
-
-        fileStream.on("finish", () => {
           api.sendMessage({
-            body: `✅ تم تحميل الفيديو بنجاح:\n🎬 ${title}`,
+            body: `◈ ───『 يـوتـيـوب 』─── ◈\n\n◯ السيرفر المستخدم: [${i + 1}/25]\n◉ تم التحميل بنجاح\n\n◈ ─────────────── ◈`,
             attachment: fs.createReadStream(path)
           }, threadID, () => {
-            fs.unlinkSync(path); // حذف الملف بعد الإرسال
+            fs.unlinkSync(path);
             api.unsendMessage(info.messageID);
           }, messageID);
-          api.setMessageReaction("📥", messageID, () => {}, true);
-        });
-
-      } catch (e) {
-        console.error(e);
-        api.editMessage("❌ عذراً، تعذر تحميل هذا الفيديو. تأكد من أن الرابط صحيح أو جرب فيديو آخر.", info.messageID);
-      }
-    }, 3000);
+          success = true; break;
+        }
+      } catch (e) { continue; } // إذا فشل السيرفر الحالي ينتقل للذي يليه فوراً
+    }
+    if (!success) api.editMessage("❌ عذراً، جميع السيرفرات الـ 25 مشغولة أو محظورة حالياً.", info.messageID);
   }, messageID);
 };
