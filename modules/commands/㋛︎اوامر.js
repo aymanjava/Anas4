@@ -1,79 +1,64 @@
 module.exports.config = {
-  name: "الاوامر",
-  version: "31.0.0",
+  name: "اوامر",
+  version: "1.0.4",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "ديوان الأوامر التفاعلي",
+  description: "قائمة أوامر البوت هبة بدون ايموجيات",
   commandCategory: "النظام",
+  usages: "[رقم الفئة]",
   usePrefix: true,
   cooldowns: 5
 };
 
-module.exports.handleReply = async function ({ api, event, handleReply }) {
-  const { threadID, messageID, body } = event;
-  const { commands } = global.client;
+module.exports.run = async function ({ api, event, args, Commands }) {
+  const { threadID, messageID } = event;
 
-  if (handleReply.type !== "listCategory") return;
+  // تنظيم الأوامر حسب الفئات
+  const categories = {
+    "1": "فئة الترفيه",
+    "2": "فئة الذكاء والصور",
+    "3": "فئة الإدارة والأنظمة",
+    "4": "فئة الألعاب",
+    "5": "فئة المتفرقات"
+  };
 
-  const num = parseInt(body);
-  const categories = handleReply.categories;
-  const categoryName = categories[num - 1];
+  // القائمة الرئيسية باسم هبة
+  if (!args[0] || !categories[args[0]]) {
+    let msg = `╭━━━━• 𝑯𝑬𝑩𝑨 •━━━━╮\n`;
+    msg += `أهلاً بك في قائمة الفئات\n`;
+    msg += `اختر رقم الفئة ليتم عرض أوامرها:\n\n`;
+    
+    for (let key in categories) {
+      msg += `${key} ⟢ ${categories[key]}\n`;
+    }
+    
+    msg += `╰━━━━━━━━━━━━━━━━╯\n`;
+    msg += `ارسل [اوامر + رقم الفئة] لرؤيتها`;
 
-  if (!categoryName) return api.sendMessage("◯ الرقم الذي اخترته غير موجود بالقائمة.", threadID, messageID);
-
-  const cmds = [];
-  commands.forEach((cmd, name) => {
-    let cat = cmd.config.commandCategory || "أخرى";
-    // توحيد المسميات لتطابق الاختيار
-    if (cat.includes("ميديا") || cat.includes("وسائط")) cat = "الوسائط";
-    else if (cat.includes("العاب") || cat.includes("ترفيه")) cat = "الألعاب";
-    else if (cat.includes("صور") || cat.includes("تعديل")) cat = "الصور";
-    else if (cat.includes("ذكاء") || cat.includes("AI")) cat = "الذكاء";
-    else if (cat.includes("خدمات") || cat.includes("نظام")) cat = "الخدمات";
-    else if (cat.includes("مطور") || cat.includes("ادمن")) cat = "المطور";
-
-    if (cat === categoryName) cmds.push(`◉ ${name}`);
-  });
-
-  let msg = `◈ ───『 فئة ${categoryName} 』─── ◈\n\n`;
-  
-  // ترتيب الأوامر في صفوف ثنائية لتصغير الحجم
-  for (let i = 0; i < cmds.length; i += 2) {
-    msg += `${cmds[i]} ${cmds[i+1] ? cmds[i+1] : ""}\n`;
+    return api.sendMessage(msg, threadID, messageID);
   }
 
-  msg += `\n————————━━━━━━━\n`;
-  msg += `│←› عدد الأوامر: ${cmds.length}\n`;
-  msg += `│←› اكتب اسم الأمر لمعرفة استخدامه.`;
-
-  return api.sendMessage(msg, threadID, messageID);
-};
-
-module.exports.run = async ({ api, event }) => {
-  const { threadID, messageID, senderID } = event;
-
-  const validCategories = ["الوسائط", "الألعاب", "الصور", "الذكاء", "الخدمات", "المطور"];
-  const icons = ["🎬", "🎮", "🖼️", "🤖", "🛠️", "👑"];
-
-  let msg = `◈ ───『 قائمة الاوامر 』─── ◈\n\n`;
-  msg += `◯ الرجاء اختيار رقم الفئة المراد عرضها:\n\n`;
-
-  validCategories.forEach((cat, index) => {
-    msg += `${icons[index]} ${index + 1} ╎ فئة ${cat}\n`;
+  // عرض أوامر الفئة المختارة
+  const chosenName = categories[args[0]];
+  let cmdList = [];
+  
+  const commands = Array.from(Commands.values());
+  commands.forEach(cmd => {
+    // التحقق من فئة الأمر ومطابقتها
+    if (cmd.config.commandCategory === chosenName) {
+      cmdList.push(cmd.config.name);
+    }
   });
 
-  msg += `\n————————━━━━━━━\n`;
-  msg += `│←› استمتع باستخدام هـبـة\n`;
-  msg += `│←› رد برقم الفئة لعرض المحتوى\n`;
-  msg += `◈ ─────────────── ◈`;
+  let helpMsg = `╭━━━━• ${chosenName} •━━━━╮\n\n`;
+  
+  if (cmdList.length > 0) {
+    helpMsg += cmdList.join(" | ");
+  } else {
+    helpMsg += `لا توجد أوامر في هذه الفئة حالياً`;
+  }
+  
+  helpMsg += `\n\n╰━━━━━━━━━━━━━━━━╯`;
 
-  return api.sendMessage(msg, threadID, (err, info) => {
-    global.client.handleReply.push({
-      name: this.config.name,
-      messageID: info.messageID,
-      author: senderID,
-      type: "listCategory",
-      categories: validCategories
-    });
-  }, messageID);
+  return api.sendMessage(helpMsg, threadID, messageID);
 };
