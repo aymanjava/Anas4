@@ -2,10 +2,10 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "يوت",
-  version: "2.0.0",
+  version: "3.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "بحث حقيقي عن فيديوهات يوتيوب",
+  description: "بحث يوتيوب مع تفاعل عد تنازلي",
   commandCategory: "ميديا",
   usePrefix: true,
   cooldowns: 5
@@ -13,39 +13,30 @@ module.exports.config = {
 
 module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID } = event;
-  const searchQuery = args.join(" ");
+  const query = args.join(" ");
+  if (!query) return api.sendMessage("✨ سيدي أيمن، ماذا تريد أن نبحث في يوتيوب؟", threadID);
 
-  if (!searchQuery) return api.sendMessage("✨ سيدي أيمن، ما الذي تريد البحث عنه في يوتيوب؟", threadID, messageID);
+  api.sendMessage("🔎 3...", threadID, (err, info) => {
+    setTimeout(() => api.editMessage("🔎 2...", info.messageID), 1000);
+    setTimeout(() => api.editMessage("🔎 1...", info.messageID), 2000);
+    setTimeout(async () => {
+      try {
+        const res = await axios.get(`https://api.samirxpikachu.it.com/yts?q=${encodeURIComponent(query)}`);
+        const results = res.data.slice(0, 4);
 
-  api.sendMessage(`🔍 جاري فحص أرشيف يوتيوب عن [ ${searchQuery} ]...`, threadID, async (err, info) => {
-    try {
-      // استخدام API بحث يوتيوب مجاني وسريع
-      const res = await axios.get(`https://api.popcat.xyz/youtube?q=${encodeURIComponent(searchQuery)}`);
-      
-      // نأخذ أول 4 نتائج كما طلبت
-      const videos = res.data.slice(0, 4);
+        if (results.length === 0) return api.editMessage("❌ لم أجد نتائج.", info.messageID);
 
-      if (videos.length === 0) {
-        return api.editMessage("❌ لم أجد أي نتائج في يوتيوب لهذا البحث.", info.messageID);
+        let msg = `✨ **نـتـائـج يـوتيـوب: ${query}** ✨\n━━━━━━━━━━━━━━\n\n`;
+        results.forEach((v, i) => {
+          msg += `${i + 1}. 📺 **${v.title}**\n🔗 الرابط: ${v.url}\n\n`;
+        });
+        msg += `━━━━━━━━━━━━━━\n💡 استخدم (.المستكشف) للتحميل!`;
+
+        api.editMessage(msg, info.messageID);
+        api.setMessageReaction("🎬", messageID, () => {}, true);
+      } catch (e) {
+        api.editMessage("❌ السيرفر لا يستجيب حالياً.", info.messageID);
       }
-
-      let msg = `✨ **نـتـائـج يـوتيـوب لـلـبـحث: ${searchQuery}** ✨\n`;
-      msg += `━━━━━━━━━━━━━━━━━━\n\n`;
-
-      videos.forEach((v, index) => {
-        msg += `${index + 1}. 📺 **${v.title}**\n`;
-        msg += `👤 الـقـناة: ${v.channel}\n`;
-        msg += `⏳ الـمدة: ${v.duration} | المشاهدات: ${v.views}\n`;
-        msg += `🔗 الـرابط: ${v.url}\n\n`;
-      });
-
-      msg += `━━━━━━━━━━━━━━━━━━\n`;
-      msg += `💡 سيدي أيمن، استخدم الرابط مع أمر (.المستكشف) لتحميل الفيديو فوراً! 🎀`;
-
-      api.editMessage(msg, info.messageID);
-    } catch (e) {
-      console.error(e);
-      api.editMessage("❌ فشل الاتصال بيوتيوب، يرجى المحاولة مرة أخرى.", info.messageID);
-    }
+    }, 3000);
   }, messageID);
 };
