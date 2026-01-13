@@ -1,12 +1,11 @@
 module.exports.config = {
   name: "autoAdhkar",
-  eventType: ["log:subscribe"],
   version: "1.1.0",
   credits: "Ayman",
-  description: "إرسال أذكار تلقائية (صدقة جارية) كل 30 دقيقة"
+  description: "إرسال أذكار تلقائية (صدقة جارية) كل 30 دقيقة لجميع المجموعات"
 };
 
-module.exports.handleEvent = async function({ api }) {
+module.exports.onLoad = async function({ api }) {
   const adhkarList = [
     "سبحان الله وبحمده", "سبحان الله العظيم", "أستغفر الله وأتوب إليه", 
     "لا إله إلا الله وحده لا شريك له", "الحمد لله رب العالمين", "الله أكبر كبيراً",
@@ -33,19 +32,33 @@ module.exports.handleEvent = async function({ api }) {
     "اللهم اجعل القرآن ربيع قلبي", "أستغفر الله"
   ];
 
-  if (!global.hibaAdhkarStarted) {
-    global.hibaAdhkarStarted = true;
-    
-    setInterval(() => {
-      api.getThreadList(100, null, ["INBOX"], (err, list) => {
-        if (err) return;
-        list.forEach(thread => {
-          if (thread.isGroup) {
-            const randomAdhkar = adhkarList[Math.floor(Math.random() * adhkarList.length)];
-            api.sendMessage(`◈ ───『 صـدقـة جـاريـة 』─── ◈\n\n◯ ${randomAdhkar}\n\n◈ ─────────────── ◈\n│←› تـم الـتـطـويـر بـواسطـة ايـمـن\n│←› اسـتـمـتـع بـاسـتـخـدام هـبـة\n◈ ─────────────── ◈`, thread.threadID);
-          }
-        });
+  // دالة الإرسال
+  const sendAdhkar = () => {
+    api.getThreadList(100, null, ["INBOX"], (err, list) => {
+      if (err) return console.log("خطأ في جلب المجموعات: " + err);
+      
+      list.forEach(thread => {
+        // الإرسال للمجموعات فقط وتجنب الحسابات الشخصية (اختياري)
+        if (thread.isGroup && thread.threadID) {
+          const randomAdhkar = adhkarList[Math.floor(Math.random() * adhkarList.length)];
+          const message = `◈ ───『 صـدقـة جـاريـة 』─── ◈\n\n◯ ${randomAdhkar}\n\n◈ ─────────────── ◈\n│←› تـم الـتـطـويـر بـواسطـة ايـمـن\n│←› اسـتـمـتـع بـاسـتـخـدام هـبـة\n◈ ─────────────── ◈`;
+          
+          api.sendMessage(message, thread.threadID, (error) => {
+            if (error) console.log(`فشل الإرسال للمجموعة ${thread.threadID}`);
+          });
+        }
       });
-    }, 1800000); // إرسال كل 30 دقيقة
-  }
+    });
+  };
+
+  // تشغيل المؤقت (كل 30 دقيقة = 1800000 ملي ثانية)
+  setInterval(sendAdhkar, 1800000);
+  
+  // ملاحظة: سيبدأ الإرسال الأول بعد 30 دقيقة من تشغيل البوت. 
+  // إذا أردت إرسال دفعة فور تشغيل البوت، يمكنك استدعاء الدالة هنا:
+  // sendAdhkar(); 
+};
+
+module.exports.handleEvent = function() {
+  // نتركها فارغة لأننا نعتمد على onLoad الآن
 };
