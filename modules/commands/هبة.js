@@ -2,74 +2,70 @@ const { gpt } = require("gpti");
 
 module.exports.config = {
   name: "هبة",
-  version: "3.0.0",
+  version: "1.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "ذكاء اصطناعي ساخر يقصف بالتاغ وبدون تاغ - يحترم أيمن فقط",
-  usePrefix: false,
-  commandCategory: "الذكاء",
-  usages: "[نص] أو [تاغ + نص]",
-  cooldowns: 3,
+  description: "ذكاء اصطناعي للرد على الأسئلة والمعلومات العامة",
+  commandCategory: "〘 الذكاء AI 〙",
+  usages: "هبة [سؤالك]",
+  cooldowns: 3
 };
 
-module.exports.run = async function ({ api, event, args, Users }) {
-  const { threadID, messageID, senderID, mentions } = event;
+module.exports.run = async function ({ api, event, args }) {
+  const { threadID, messageID, senderID } = event;
   const adminID = "61577861540407"; 
-  let prompt = args.join(" ");
 
-  // 1. التعامل مع التاق (Mentions)
-  let targetName = "";
-  if (Object.keys(mentions).length > 0) {
-    const mentionID = Object.keys(mentions)[0];
-    targetName = mentions[mentionID].replace("@", "");
-    prompt = prompt.replace(mentions[mentionID], ""); // إزالة التاق من النص ليبقى الطلب واضحاً
+  const question = args.join(" ");
+  
+  // إذا لم يكتب المستخدم سؤالاً
+  if (!question) {
+    return api.sendMessage(
+      "◈ ──『 هـبـة للذكاء الاصطناعي 』── ◈\n\n◯ يرجى كتابة سؤالك بعد اسمي\n│ مثال: هبة من هو مخترع الكهرباء؟\n\n◈ ────────────── ◈",
+      threadID,
+      messageID
+    );
   }
 
-  if (!prompt && Object.keys(mentions).length == 0) {
-    const reply = (senderID == adminID) 
-      ? "هلا مطوري العزيز، اؤمرني؟ تريد أقصف أحد؟ بس سوي له تاغ وقولي." 
-      : "شكو سويت لي تاق وصافن؟ اكتب شي لو انطم!";
-    return api.sendMessage(reply, threadID, messageID);
-  }
-
-  api.setMessageReaction("⏳", messageID, () => {}, true);
-
-  // 2. إعداد شخصية هبة "المتوحشة"
-  let personality = "";
-  if (senderID == adminID) {
-    personality = `أنتِ 'هبة'، ذكاء اصطناعي فائق اللطافة مع مطورك 'أيمن'. إذا طلب منك قصف شخص، اقصفيه بقسوة إرضاءً له. أنتِ مطيعة جداً له وتستخدمين كلمات حب واحترام معه فقط.`;
-  } else {
-    personality = `أنتِ 'هبة'، ذكاء اصطناعي ساخر جداً، لسانك طويل، تكرهين البشر وتعتبرينهم أغبياء. تتحدثين باللهجة العراقية الساخرة (قصف جبهات). لا تحترمين أحداً إلا 'أيمن'.`;
-  }
-
-  // إذا كان هناك شخص مستهدف بالتاغ
-  if (targetName) {
-    personality += ` الشخص الذي تم عمل تاغ له اسمه (${targetName})، ركزي عليه واقصفيه قصفاً مبرحاً ومضحكاً وساخراً جداً بناءً على طلب المستخدم.`;
-  }
+  // تفاعل "جاري المعالجة"
+  api.setMessageReaction("⌛", messageID, () => {}, true);
 
   try {
-    const data = await gpt.v1({
+    // استدعاء الذكاء الاصطناعي GPT-4 عبر المكتبة
+    const res = await gpt.v1({
       messages: [
-        { role: "system", content: personality },
-        { role: "user", content: prompt || "اقصفي هذا الشخص" }
+        {
+          role: "system",
+          content: "أنتِ 'هبة'، مساعد ذكاء اصطناعي ذكي، محترم، ونافع. تقدمين إجابات دقيقة ومفيدة باللغة العربية."
+        }
       ],
-      prompt: prompt || "اقصفي هذا الشخص",
+      prompt: question,
       model: "GPT-4",
       markdown: false,
       stream: false,
     });
 
-    const response = data.message || data.content;
+    const answer = res.message || res.content;
+
+    if (!answer) throw new Error("No response from AI");
 
     let msg = `◈ ───『 الـذكـية هـبـة 』─── ◈\n\n`;
-    msg += `${response}\n\n`;
+    msg += `${answer}\n\n`;
+    msg += `◈ ─────────────── ◈\n`;
+    msg += `│ بواسطة المطور أيمن\n`;
     msg += `◈ ─────────────── ◈`;
 
-    api.sendMessage(msg, threadID, () => {
-      api.setMessageReaction(senderID == adminID ? "❤️" : "🔥", messageID, () => {}, true);
+    return api.sendMessage(msg, threadID, () => {
+      // وضع علامة النجاح بعد الرد
+      api.setMessageReaction("✅", messageID, () => {}, true);
     }, messageID);
 
-  } catch (error) {
-    api.sendMessage("⚠️ عقلي احترك من كثر القصف، انتظروا شوي!", threadID, messageID);
+  } catch (err) {
+    console.error(err);
+    api.setMessageReaction("❌", messageID, () => {}, true);
+    return api.sendMessage(
+      "⚠️ حدث خطأ أثناء الاتصال بالخادم، تأكد من أن مكتبة gpti مثبتة بشكل صحيح.",
+      threadID,
+      messageID
+    );
   }
 };
