@@ -2,44 +2,50 @@ const axios = require("axios");
 
 module.exports.config = {
   name: "هبة",
-  version: "1.0.1",
+  version: "5.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "ذكاء اصطناعي هبة - نسخة مستقرة وسريعة",
-  commandCategory: "〘 الذكاء AI 〙",
-  usages: "هبة [سؤالك]",
-  cooldowns: 2
+  description: "ذكاء اصطناعي هبة - نسخة مجانية تعمل بدون مفاتيح",
+  usePrefix: false,
+  commandCategory: "الذكاء",
+  usages: "[سؤالك]",
+  cooldowns: 2,
 };
 
 module.exports.run = async function ({ api, event, args }) {
-  const { threadID, messageID } = event;
-  const question = args.join(" ");
+  const { threadID, messageID, senderID } = event;
+  const prompt = args.join(" ");
 
-  if (!question) {
-    return api.sendMessage("◯ يرجى كتابة سؤالك (مثلاً: هبة كيف حالك؟)", threadID, messageID);
+  // إذا لم يكتب المستخدم شيئاً
+  if (!prompt) {
+    return api.sendMessage("◯ نعم؟ أنا هبة، اسألني أي شيء وسأجيبك فوراً.", threadID, messageID);
   }
 
+  // وضع تفاعل الانتظار
   api.setMessageReaction("⌛", messageID, () => {}, true);
 
   try {
-    // استخدام API خارجي سريع ومستقر جداً
-    const res = await axios.get(`https://api.samirxpikachu.it.com/blackbox?chat=${encodeURIComponent(question)}`);
+    // الاتصال بالذكاء الاصطناعي عبر رابط مجاني ومستقر
+    const res = await axios.get(`https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(prompt)}&botname=Heba&owner=Ayman`);
     
-    // استخراج الجواب (تأكد من مسار البيانات في الـ API)
-    const answer = res.data.response || res.data.data || "لم أستطع إيجاد جواب مناسب.";
+    // استخراج الإجابة من البيانات القادمة
+    const response = res.data.response;
+
+    if (!response) throw new Error("No Response");
 
     let msg = `◈ ───『 الـذكـية هـبـة 』─── ◈\n\n`;
-    msg += `${answer}\n\n`;
+    msg += `${response}\n\n`;
     msg += `◈ ─────────────── ◈\n`;
     msg += `│ بواسطة المطور أيمن\n`;
     msg += `◈ ─────────────── ◈`;
 
-    api.setMessageReaction("✅", messageID, () => {}, true);
+    // تغيير التفاعل عند النجاح وإرسال الرسالة
+    api.setMessageReaction("✨", messageID, () => {}, true);
     return api.sendMessage(msg, threadID, messageID);
 
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     api.setMessageReaction("❌", messageID, () => {}, true);
-    return api.sendMessage("⚠️ عذراً، السيرفر لا يستجيب حالياً، جرب مرة أخرى.", threadID, messageID);
+    return api.sendMessage("⚠️ عذراً أيمن، السيرفر المجاني مضغوط حالياً، حاول مجدداً بعد ثوانٍ.", threadID, messageID);
   }
 };
