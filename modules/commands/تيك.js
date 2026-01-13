@@ -1,54 +1,46 @@
 const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
 
 module.exports.config = {
   name: "تيك",
-  version: "2.0.0",
+  version: "2.5.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "بحث حقيقي عن فيديوهات تيك توك",
+  description: "بحث تيك توك مع عد تنازلي وتفاعل",
   commandCategory: "ميديا",
   usePrefix: true,
-  cooldowns: 10
+  cooldowns: 5
 };
 
 module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID } = event;
-  const searchQuery = args.join(" ");
+  const query = args.join(" ");
+  if (!query) return api.sendMessage("✨ سيدي أيمن، ماذا ننبش في تيك توك؟", threadID, messageID);
 
-  if (!searchQuery) return api.sendMessage("✨ سيدي أيمن، أخبرني ماذا تريد أن أبحث عنه في تيك توك؟", threadID, messageID);
+  // إضافة تفاعل البحث
+  api.setMessageReaction("🔍", messageID, () => {}, true);
 
-  api.sendMessage(`🔍 جاري البحث عن [ ${searchQuery} ]... ⏳`, threadID, async (err, info) => {
-    try {
-      // استخدام API بحث تيك توك (TiklyDown أو ما يشابهها)
-      const response = await axios.get(`https://api.tiklydown.eu.org/api/main/search?q=${encodeURIComponent(searchQuery)}`);
-      
-      // نأخذ أول 4 فيديوهات فقط كما طلبت
-      const videos = response.data.result.slice(0, 4); 
+  const msgWait = await api.sendMessage("⏳ جاري البحث... [ 3 ]", threadID);
+  
+  // تأثير العد التنازلي
+  setTimeout(() => api.editMessage("⏳ جاري البحث... [ 2 ]", msgWait.messageID), 1000);
+  setTimeout(() => api.editMessage("⏳ جاري البحث... [ 1 ]", msgWait.messageID), 2000);
 
-      if (videos.length === 0) {
-        return api.editMessage("❌ للأسف لم أجد نتائج لهذا البحث.", info.messageID);
-      }
+  try {
+    const res = await axios.get(`https://api.shayan-smart.com/tiktok/search?query=${encodeURIComponent(query)}`);
+    const videos = res.data.data.slice(0, 4);
 
-      let msg = `✨ **نـتـائـج بـحث تـيـك تـوك: ${searchQuery}** ✨\n`;
-      msg += `━━━━━━━━━━━━━━━━━━\n\n`;
+    let report = `✨ **نـتـائـج تـيـك تـوك لـلـمـطور أيـمن** ✨\n━━━━━━━━━━━━━━━━━━\n\n`;
+    videos.forEach((v, i) => {
+      report += `${i + 1}. 🎬 **${v.title || "فيديو بدون عنوان"}**\n👤 الـمؤلف: ${v.author.nickname}\n🔗 الرابط: https://www.tiktok.com/@${v.author.unique_id}/video/${v.video_id}\n\n`;
+    });
 
-      for (let i = 0; i < videos.length; i++) {
-        const v = videos[i];
-        msg += `${i + 1}. 🎬 **${v.title.substring(0, 50)}...**\n`;
-        msg += `👤 الـمؤلف: ${v.author.nickname}\n`;
-        msg += `🔗 الرابط: https://www.tiktok.com/@${v.author.unique_id}/video/${v.video_id}\n\n`;
-      }
+    setTimeout(() => {
+        api.editMessage(report + `━━━━━━━━━━━━━━━━━━\n💡 استخدم (.المستكشف) للتحميل!`, msgWait.messageID);
+        api.setMessageReaction("✅", messageID, () => {}, true);
+    }, 3000);
 
-      msg += `━━━━━━━━━━━━━━━━━━\n`;
-      msg += `💡 انسخ رابط الفيديو واستخدم (.المستكشف) لتحميله فوراً!`;
-
-      api.editMessage(msg, info.messageID);
-
-    } catch (e) {
-      console.error(e);
-      api.editMessage("❌ حدث خطأ أثناء الاتصال بخوادم تيك توك، حاول لاحقاً.", info.messageID);
-    }
-  }, messageID);
+  } catch (e) {
+    api.editMessage("❌ فشل الاتصال.. الـ API قد يكون تحت الصيانة.", msgWait.messageID);
+    api.setMessageReaction("⚠️", messageID, () => {}, true);
+  }
 };
