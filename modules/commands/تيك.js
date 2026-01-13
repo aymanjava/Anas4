@@ -1,47 +1,54 @@
 const axios = require("axios");
+const fs = require("fs-extra");
+const path = require("path");
 
 module.exports.config = {
   name: "تيك",
-  version: "1.0.0",
+  version: "2.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "البحث عن ترندات تيك توك",
+  description: "بحث حقيقي عن فيديوهات تيك توك",
   commandCategory: "ميديا",
   usePrefix: true,
-  cooldowns: 5
+  cooldowns: 10
 };
 
 module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID } = event;
   const searchQuery = args.join(" ");
 
-  if (!searchQuery) return api.sendMessage("✨ سيدي أيمن، يرجى كتابة اسم الترند بجانب الأمر.\nمثال: .تيك ترند العيون", threadID, messageID);
+  if (!searchQuery) return api.sendMessage("✨ سيدي أيمن، أخبرني ماذا تريد أن أبحث عنه في تيك توك؟", threadID, messageID);
 
-  api.sendMessage(`🔍 جاري البحث عن [ ${searchQuery} ] في فضاء تيك توك...`, threadID, async (err, info) => {
+  api.sendMessage(`🔍 جاري البحث عن [ ${searchQuery} ]... ⏳`, threadID, async (err, info) => {
     try {
-      // ملاحظة: هذا الكود يحاكي جلب نتائج البحث وعرضها بأسلوب هبة الأنيق
-      // النتائج أدناه هي أفضل الفيديوهات لترند العيون 2025
+      // استخدام API بحث تيك توك (TiklyDown أو ما يشابهها)
+      const response = await axios.get(`https://api.tiklydown.eu.org/api/main/search?q=${encodeURIComponent(searchQuery)}`);
       
-      let msg = `✨ **نـتـائـج الـبـحث لـتـرنـد: ${searchQuery}** ✨\n`;
+      // نأخذ أول 4 فيديوهات فقط كما طلبت
+      const videos = response.data.result.slice(0, 4); 
+
+      if (videos.length === 0) {
+        return api.editMessage("❌ للأسف لم أجد نتائج لهذا البحث.", info.messageID);
+      }
+
+      let msg = `✨ **نـتـائـج بـحث تـيـك تـوك: ${searchQuery}** ✨\n`;
       msg += `━━━━━━━━━━━━━━━━━━\n\n`;
 
-      const results = [
-        { title: "ترند العيون - غيث مروان", url: "http://www.youtube.com/watch?v=myfkulGXPPM" },
-        { title: "ترند العيون تيك توك - ماسة", url: "http://www.youtube.com/watch?v=CdVQ-ScGfx0" },
-        { title: "جديد ترند العيون - بنين ستارز", url: "http://www.youtube.com/watch?v=w5lMnNmFlNs" },
-        { title: "ترند العيون - نور مار", url: "http://www.youtube.com/watch?v=8QSI8kZPEmc" }
-      ];
-
-      results.forEach((vid, index) => {
-        msg += `${index + 1}. 🎬 **${vid.title}**\n🔗 رابط المشاهدة: ${vid.url}\n\n`;
-      });
+      for (let i = 0; i < videos.length; i++) {
+        const v = videos[i];
+        msg += `${i + 1}. 🎬 **${v.title.substring(0, 50)}...**\n`;
+        msg += `👤 الـمؤلف: ${v.author.nickname}\n`;
+        msg += `🔗 الرابط: https://www.tiktok.com/@${v.author.unique_id}/video/${v.video_id}\n\n`;
+      }
 
       msg += `━━━━━━━━━━━━━━━━━━\n`;
-      msg += `💡 يمكنك نسخ الرابط واستخدام أمر (.المستكشف) لتحميله مباشرة! ✨`;
+      msg += `💡 انسخ رابط الفيديو واستخدم (.المستكشف) لتحميله فوراً!`;
 
       api.editMessage(msg, info.messageID);
+
     } catch (e) {
-      api.editMessage("❌ عذراً سيدي، واجهت مشكلة في جلب النتائج.", info.messageID);
+      console.error(e);
+      api.editMessage("❌ حدث خطأ أثناء الاتصال بخوادم تيك توك، حاول لاحقاً.", info.messageID);
     }
   }, messageID);
 };
