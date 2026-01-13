@@ -1,51 +1,80 @@
-const axios = require("axios");
+const { Configuration, OpenAIApi } = require('openai');
+
+// إعداد المحرك
+const configuration = new Configuration({
+  apiKey: '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',
+});
+const openai = new OpenAIApi(configuration);
+
+// كائن لحفظ الذاكرة مؤقتاً (سوف يتصفر عند إعادة تشغيل البوت)
+// إذا أردت حفظاً دائمياً يمكن ربطه بقاعدة بيانات sqlite لاحقاً
+if (!global.heba_chat_memory) {
+  global.heba_chat_memory = new Map();
+}
 
 module.exports.config = {
   name: "هبة",
-  version: "5.0.0",
+  version: "3.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "ذكاء اصطناعي هبة - نسخة مجانية تعمل بدون مفاتيح",
-  usePrefix: false,
-  commandCategory: "الذكاء",
+  description: "ذكاء هبة المطور مع ميزة الذاكرة",
+  commandCategory: "الذكاء الاصطناعي",
   usages: "[سؤالك]",
-  cooldowns: 2,
+  cooldowns: 5
 };
 
-module.exports.run = async function ({ api, event, args }) {
+module.exports.run = async function({ api, event, args }) {
   const { threadID, messageID, senderID } = event;
   const prompt = args.join(" ");
 
-  // إذا لم يكتب المستخدم شيئاً
   if (!prompt) {
-    return api.sendMessage("◯ نعم؟ أنا هبة، اسألني أي شيء وسأجيبك فوراً.", threadID, messageID);
+    return api.sendMessage("╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n✨ نعم! أنا أتذكرك، هل لديك سؤال آخر؟\n╰──────────────╯", threadID, messageID);
   }
 
-  // وضع تفاعل الانتظار
+  // 1. استرجاع ذاكرة المستخدم أو إنشاء ذاكرة جديدة
+  if (!global.heba_chat_memory.has(senderID)) {
+    global.heba_chat_memory.set(senderID, [
+      { role: "system", content: "أنتِ 'هبة'، بوت ذكي بلمسة أنثوية لطيفة، تتحدثين بالعربية بأسلوب مساعد وودود جداً." }
+    ]);
+  }
+
+  let userMemory = global.heba_chat_memory.get(senderID);
+
+  // إضافة سؤال المستخدم الحالي للذاكرة
+  userMemory.push({ role: "user", content: prompt });
+
+  // تحديد حجم الذاكرة (آخر 10 رسائل فقط لعدم استهلاك التوكنز)
+  if (userMemory.length > 10) userMemory.shift();
+
   api.setMessageReaction("⌛", messageID, () => {}, true);
+  
+  api.sendMessage("╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n🧠 جاري مراجعة ذاكرتي والرد...\n╰──────────────╯", threadID, async (err, info) => {
+    try {
+      // 2. إرسال المحادثة كاملة (الذاكرة + السؤال الجديد)
+      const response = await openai.createChatCompletion({
+        model: "gpt-3.5-turbo",
+        messages: userMemory,
+        max_tokens: 800,
+        temperature: 0.7
+      });
 
-  try {
-    // الاتصال بالذكاء الاصطناعي عبر رابط مجاني ومستقر
-    const res = await axios.get(`https://api.popcat.xyz/chatbot?msg=${encodeURIComponent(prompt)}&botname=Heba&owner=Ayman`);
-    
-    // استخراج الإجابة من البيانات القادمة
-    const response = res.data.response;
+      const reply = response.data.choices[0].message.content.trim();
 
-    if (!response) throw new Error("No Response");
+      // 3. إضافة رد البوت للذاكرة لكي يتذكره في المرة القادمة
+      userMemory.push({ role: "assistant", content: reply });
+      global.heba_chat_memory.set(senderID, userMemory);
 
-    let msg = `◈ ───『 الـذكـية هـبـة 』─── ◈\n\n`;
-    msg += `${response}\n\n`;
-    msg += `◈ ─────────────── ◈\n`;
-    msg += `│ بواسطة المطور أيمن\n`;
-    msg += `◈ ─────────────── ◈`;
+      api.setMessageReaction("✅", messageID, () => {}, true);
+      
+      return api.editMessage(
+        `╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n\n🤖 هبة:\n${reply}\n\n╰──────────────╯`,
+        info.messageID
+      );
 
-    // تغيير التفاعل عند النجاح وإرسال الرسالة
-    api.setMessageReaction("✨", messageID, () => {}, true);
-    return api.sendMessage(msg, threadID, messageID);
-
-  } catch (error) {
-    console.error(error);
-    api.setMessageReaction("❌", messageID, () => {}, true);
-    return api.sendMessage("⚠️ عذراً أيمن، السيرفر المجاني مضغوط حالياً، حاول مجدداً بعد ثوانٍ.", threadID, messageID);
-  }
+    } catch (error) {
+      console.error("Memory Chat Error:", error);
+      api.setMessageReaction("❌", messageID, () => {}, true);
+      return api.editMessage("╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n❌ عذراً، ذاكرتي ممتلئة أو حدث خطأ في الاتصال.\n╰──────────────╯", info.messageID);
+    }
+  }, messageID);
 };
