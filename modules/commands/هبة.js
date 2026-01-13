@@ -1,23 +1,22 @@
 const { Configuration, OpenAIApi } = require('openai');
 
-// إعداد المحرك
+// إعداد المحرك ليقرأ المفتاح من Render Environment Variables
 const configuration = new Configuration({
-  apiKey: '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',
+  apiKey: process.env.OPENAI_KEY, // قمنا بإزالة التوكن ووضعنا المتغير البرمجي بدلاً منه
 });
 const openai = new OpenAIApi(configuration);
 
-// كائن لحفظ الذاكرة مؤقتاً (سوف يتصفر عند إعادة تشغيل البوت)
-// إذا أردت حفظاً دائمياً يمكن ربطه بقاعدة بيانات sqlite لاحقاً
+// كائن لحفظ الذاكرة مؤقتاً
 if (!global.heba_chat_memory) {
   global.heba_chat_memory = new Map();
 }
 
 module.exports.config = {
   name: "هبة",
-  version: "3.0.0",
+  version: "3.1.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "ذكاء هبة المطور مع ميزة الذاكرة",
+  description: "ذكاء هبة المطور مع ميزة الذاكرة (نسخة آمنة)",
   commandCategory: "الذكاء الاصطناعي",
   usages: "[سؤالك]",
   cooldowns: 5
@@ -39,18 +38,19 @@ module.exports.run = async function({ api, event, args }) {
   }
 
   let userMemory = global.heba_chat_memory.get(senderID);
-
-  // إضافة سؤال المستخدم الحالي للذاكرة
   userMemory.push({ role: "user", content: prompt });
 
-  // تحديد حجم الذاكرة (آخر 10 رسائل فقط لعدم استهلاك التوكنز)
   if (userMemory.length > 10) userMemory.shift();
 
   api.setMessageReaction("⌛", messageID, () => {}, true);
   
   api.sendMessage("╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n🧠 جاري مراجعة ذاكرتي والرد...\n╰──────────────╯", threadID, async (err, info) => {
     try {
-      // 2. إرسال المحادثة كاملة (الذاكرة + السؤال الجديد)
+      // التأكد من وجود المفتاح في النظام قبل الطلب
+      if (!process.env.OPENAI_KEY) {
+        throw new Error("OPENAI_KEY_MISSING");
+      }
+
       const response = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: userMemory,
@@ -59,8 +59,6 @@ module.exports.run = async function({ api, event, args }) {
       });
 
       const reply = response.data.choices[0].message.content.trim();
-
-      // 3. إضافة رد البوت للذاكرة لكي يتذكره في المرة القادمة
       userMemory.push({ role: "assistant", content: reply });
       global.heba_chat_memory.set(senderID, userMemory);
 
@@ -74,7 +72,13 @@ module.exports.run = async function({ api, event, args }) {
     } catch (error) {
       console.error("Memory Chat Error:", error);
       api.setMessageReaction("❌", messageID, () => {}, true);
-      return api.editMessage("╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n❌ عذراً، ذاكرتي ممتلئة أو حدث خطأ في الاتصال.\n╰──────────────╯", info.messageID);
+      
+      let errorMsg = "❌ عذراً، حدث خطأ في الاتصال بالذكاء الاصطناعي.";
+      if (error.message === "OPENAI_KEY_MISSING") {
+        errorMsg = "❌ خطأ: مفتاح OPENAI_KEY غير مضاف في إعدادات Render!";
+      }
+
+      return api.editMessage(`╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n${errorMsg}\n╰──────────────╯`, info.messageID);
     }
   }, messageID);
 };
