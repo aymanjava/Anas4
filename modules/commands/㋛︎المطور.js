@@ -1,36 +1,57 @@
 module.exports.config = {
   name: "المطور",
-  version: "1.0.0",
+  version: "2.7.0",
   hasPermssion: 0,
   credits: "Hiba",
-  description: "عرض معلومات مطور البوت",
+  description: "عرض معلومات مطور البوت برموز غير ملونة",
   commandCategory: "النظام",
   usages: "",
   cooldowns: 5
 };
 
-module.exports.run = async function ({ api, event, Users }) {
+module.exports.run = async function ({ api, event }) {
   const { threadID, messageID } = event;
   const request = require("request");
   const fs = require("fs-extra");
 
-  // رابط الصورة المتحركة الذي اخترتيه
-  const gifUrl = "https://media.giphy.com/media/YhqyiijLeMCpq/giphy.gif";
-  const path = __dirname + "/cache/dev_gif.gif";
+  // قائمة روابط الـ GIF
+  const gifs = [
+    "https://media.giphy.com/media/XqVUeEK5Lt3VOGEzJj/giphy.gif",
+    "https://media.giphy.com/media/HyOOyynWxMxig/giphy.gif",
+    "https://media.giphy.com/media/SnVZO1N0Wo6u4/giphy.gif",
+    "https://media.giphy.com/media/wXo9rzjkBBk7m/giphy.gif",
+    "https://media.giphy.com/media/FB5EOw0CaaQM0/giphy.gif",
+    "https://media.giphy.com/media/ztpMY1t5VYWlO/giphy.gif",
+    "https://media.giphy.com/media/Uho05vACGIjMk/giphy.gif",
+    "https://media.giphy.com/media/gysS4T0YsTKdq/giphy.gif",
+    "https://media.giphy.com/media/58oxPkC3lWuNa/giphy.gif",
+    "https://media.giphy.com/media/kXdo4BgGoFC80/giphy.gif"
+  ];
+
+  const randomGif = gifs[Math.floor(Math.random() * gifs.length)];
+  const path = __dirname + `/cache/hiba_dev_${Date.now()}.gif`;
 
   const callback = () => {
     return api.sendMessage({
-      body: "╭─────────────╮\n" +
-            "    💎 مـعـلـومـات الـمـطـور\n" +
-            "╰─────────────╯\n" +
-            "🔳 الاسـم: 『 ايمن 』\n" +
-            "🔳 الـرابـط: fb.com/xvk1c\n" +
-            "🔳 الـجـنـس: ذكر\n" +
-            "🔳 الـمـهـنة: مـطـور بوتـات\n\n" +
-            "✨ شـكـراً لاسـتـخـدامـك بـوت 𝙃𝙄𝘽𝘼 ✨",
+      body: `◈ ───『 مـعـلـومـات الـمـطـور 』─── ◈\n\n` +
+            `◯ الاسـم: 『 ايـمـن 』\n` +
+            `◯ اللـقـب: مـبـرمـج هـبـة ✞︎\n` +
+            `◯ الـعـمـر: 18 سـنـة\n` +
+            `◯ الـديـانـة: مـسـيـحـي ✞︎\n` +
+            `◯ الـسـكـن: الـعـراق ✞︎\n` +
+            `◯ الـهـواية: تـطـويـر الـذكاء الاصـطـناعـي\n\n` +
+            `───────────────\n` +
+            `◯ رابـط الـفـيـسـبـوك:\n` +
+            `⮕ fb.com/xvk1c\n\n` +
+            `◯ مـلاحـظـة:\n` +
+            `← إذا واجـهـت مـشـكـلـة تـواصـل مـعـي فـوراً\n\n` +
+            `◈ ─────────────── ◈\n` +
+            `│←› تـم الـتـطـويـر بـواسطـة ايـمـن\n` +
+            `│←› اسـتـمـتـع بـاسـتـخـدام هـبـة ✞︎\n` +
+            `◈ ─────────────── ◈`,
       attachment: fs.createReadStream(path)
     }, threadID, () => fs.unlinkSync(path), messageID);
   };
 
-  return request(encodeURI(gifUrl)).pipe(fs.createWriteStream(path)).on("close", callback);
+  return request(encodeURI(randomGif)).pipe(fs.createWriteStream(path)).on("close", callback);
 };
