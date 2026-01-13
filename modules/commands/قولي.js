@@ -2,7 +2,7 @@ const gtts = require("gtts");
 const fs = require("fs-extra");
 
 module.exports.config = {
-  name: "قول",
+  name: "قولي",
   version: "1.0.0",
   hasPermssion: 0,
   credits: "Ayman",
