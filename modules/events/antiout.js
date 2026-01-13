@@ -1,87 +1,54 @@
 module.exports.config = {
-  name: "antiout",
-  eventType: ["log:unsubscribe"],
-  version: "2.0.0",
+  name: "منع_الهروب",
+  version: "2.5.0",
+  hasPermssion: 1, // للمشرفين فقط لتشغيله
   credits: "Ayman",
-  description: "نظام منع الهروب من المجموعة"
+  description: "يمنع أعضاء المجموعة من المغادرة ويرجعهم تلقائياً",
+  commandCategory: "🛡️ حماية المجموعات",
+  usages: "تشغيل/ايقاف",
+  cooldowns: 5,
 };
 
-module.exports.handleEvent = async ({ api, event, Threads, Users }) => {
-  const { threadID, logMessageData } = event;
+module.exports.handleEvent = async function({  api, event, Threads }) {
+    const { threadID, logMessageType, logMessageData } = event;
 
-  if (!logMessageData) return;
+    // التأكد أن الحدث هو خروج عضو
+    if (logMessageType !== "log:unsubscribe") return;
 
-  const data = (await Threads.getData(threadID)).data || {};
-  if (data.antiout !== true) return;
+    // جلب بيانات المجموعة للتأكد هل النظام مفعل أم لا
+    let data = (await Threads.getData(threadID)).data || {};
+    if (data.antiout !== true) return;
 
-  const leftID = logMessageData.leftParticipantFbId;
-  const actorID = logMessageData.actorFbId;
+    // إذا كان البوت هو من خرج، لا يفعل شيء
+    const leftID = logMessageData.leftParticipantFbId;
+    if (leftID == api.getCurrentUserID()) return;
 
-  // لا تتدخل إذا البوت خرج
-  if (leftID == api.getCurrentUserID()) return;
+    const actorID = logMessageData.actorFbId;
 
-  try {
-    const name = await Users.getNameUser(leftID);
+    // إذا كان الشخص هو من خرج بنفسه (هروب)
+    if (leftID == actorID) {
+        api.addUserToGroup(leftID, threadID, (err) => {
+            if (err) {
+                return api.sendMessage(`╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n\n🏃 حاول أحدهم الهروب ولكن خصوصية حسابه تمنعني من إعادته!\n\n╰──────────────╯`, threadID);
+            }
+            return api.sendMessage(`╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n\n🛡️ ممنوع الهروب من هنا!\n✅ تم إعادة العضو إلى المجموعة بنجاح.\n\n╰──────────────╯`, threadID);
+        });
+    }
+};
 
-    // إذا خرج بنفسه
-    if (leftID === actorID) {
-      return api.addUserToGroup(leftID, threadID, (err) => {
-        if (err) {
-          return api.sendMessage(
-`◈ ───『 مـنـع الـهـروب 』─── ◈
+module.exports.run = async function({ api, event, Threads }) {
+    const { threadID, messageID } = event;
+    let data = (await Threads.getData(threadID)).data || {};
 
-◯ ${name} حاول يطلع 🏃
-◯ بس إعداداته منعتني أرجعه 😔
-
-◈ ─────────────── ◈`,
-            threadID
-          );
-        }
-
-        api.sendMessage(
-`◈ ───『 مـمـنـوع الـهـروب 』─── ◈
-
-◯ العضو: ${name}
-◯ تم إرجاعه بنجاح ✨
-◯ لا تعيدها مرة ثانية 😌
-
-◈ ─────────────── ◈`,
-          threadID
-        );
-      });
+    // تبديل الحالة
+    if (typeof data.antiout == "undefined" || data.antiout == false) {
+        data.antiout = true;
+    } else {
+        data.antiout = false;
     }
 
-    // إذا طُرد من أدمن
-    return api.sendMessage(
-`◈ ───『 مـغـادرة 』─── ◈
+    await Threads.setData(threadID, { data });
+    global.data.threadData.set(threadID, data);
 
-◯ العضو: ${name}
-◯ تم إخراجه بواسطة أحد المشرفين 🚪
-
-◈ ─────────────── ◈`,
-      threadID
-    );
-
-  } catch (e) {
-    console.log("AntiOut Error:", e.message);
-  }
-};
-
-module.exports.run = async ({ api, event, Threads }) => {
-  const { threadID, messageID } = event;
-
-  const data = (await Threads.getData(threadID)).data || {};
-  data.antiout = !data.antiout;
-
-  await Threads.setData(threadID, { data });
-
-  return api.sendMessage(
-`◈ ───『 مـنـع الـهـروب 』─── ◈
-
-◯ الحالة: ${data.antiout ? "مفعل ✅" : "متوقف ❌"}
-
-◈ ─────────────── ◈`,
-    threadID,
-    messageID
-  );
+    return api.sendMessage(`╭──── • 𝑯𝑬𝑩𝑨 • ────╮\n\n🛡️ نظام منع الهروب\n⚙️ الحالة الآن: ${data.antiout ? "مـفـعـل ✅" : "مـتـوقـف ❌"}\n\n╰──────────────╯`, threadID, messageID);
 };
