@@ -1,9 +1,9 @@
 module.exports.config = {
   name: "اوامر",
-  version: "1.0.4",
+  version: "1.0.5",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "قائمة أوامر البوت هبة بدون ايموجيات",
+  description: "قائمة أوامر البوت هبة مع فئة اسلاميات",
   commandCategory: "النظام",
   usages: "[رقم الفئة]",
   usePrefix: true,
@@ -13,13 +13,14 @@ module.exports.config = {
 module.exports.run = async function ({ api, event, args, Commands }) {
   const { threadID, messageID } = event;
 
-  // تنظيم الأوامر حسب الفئات
+  // تنظيم الأوامر حسب الفئات (إضافة الفئة السادسة)
   const categories = {
     "1": "فئة الترفيه",
     "2": "فئة الذكاء والصور",
     "3": "فئة الإدارة والأنظمة",
     "4": "فئة الألعاب",
-    "5": "فئة المتفرقات"
+    "5": "فئة المتفرقات",
+    "6": "فئة اسلاميات"
   };
 
   // القائمة الرئيسية باسم هبة
@@ -44,7 +45,7 @@ module.exports.run = async function ({ api, event, args, Commands }) {
   
   const commands = Array.from(Commands.values());
   commands.forEach(cmd => {
-    // التحقق من فئة الأمر ومطابقتها
+    // التحقق من فئة الأمر ومطابقتها تماماً
     if (cmd.config.commandCategory === chosenName) {
       cmdList.push(cmd.config.name);
     }
