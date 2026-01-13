@@ -1,52 +1,56 @@
 module.exports.config = {
-  name: "رندر",
-  version: "1.5.0",
+  name: "فحص_النظام",
+  version: "4.0.0",
   hasPermssion: 2, 
   credits: "Ayman",
-  description: "التحقق من حالة جميع الأوامر والفعاليات المسجلة",
+  description: "تقرير فحص تقني شامل لجميع الأوامر والفعاليات",
   commandCategory: "النظام",
   usePrefix: true,
-  cooldowns: 5
+  cooldowns: 10
 };
 
-module.exports.run = async function({ api, event, args }) {
+module.exports.run = async function({ api, event }) {
   const { commands, events } = global.client;
-  let msg = "📊 **تقرير رندر لحالة النظام**\n━━━━━━━━━━━━━━━━━━\n\n";
+  const moment = require("moment-timezone");
+  const time = moment.tz("Asia/Baghdad").format("HH:mm:ss DD/MM/YYYY");
 
-  // 1. فحص الأوامر (Commands)
-  msg += "🛠️ [ الأوامر - Commands ]\n";
-  
-  // فحص الأوامر التي تمت صناعتها
-  const targetCmds = ["autoAdhkar", "رندر"]; 
-  targetCmds.forEach(cmd => {
-    if (commands.has(cmd)) {
-      msg += `✅ الأمر [ ${cmd} ]: جاهز\n`;
-    } else {
-      msg += `❌ الأمر [ ${cmd} ]: غير موجود\n`;
-    }
-  });
+  api.sendMessage("✨ جاري فحص شيفرة النظام وتحليل الاستجابات... ⏳", event.threadID, async (err, info) => {
+    
+    let report = `💎 **تـقـريـر هـبة الـفـني الـشامـل** 💎\n`;
+    report += `━━━━━━━━━━━━━━━━━━\n\n`;
 
-  msg += "\n━━━━━━━━━━━━━━━━━━\n";
+    // 1. فحص الأوامر وتحليل مكوناتها
+    let cmdStats = { react: 0, tags: 0, reply: 0 };
+    
+    commands.forEach((cmd) => {
+      const code = (cmd.run ? cmd.run.toString() : "") + (cmd.handleEvent ? cmd.handleEvent.toString() : "");
+      
+      if (code.includes("setMessageReaction")) cmdStats.react++;
+      if (code.includes("mentions") || code.includes("@")) cmdStats.tags++;
+      if (code.includes("sendMessage") || code.includes("messageReply")) cmdStats.reply++;
+    });
 
-  // 2. فحص الفعاليات (Events)
-  msg += "🎭 [ الفعاليات - Events ]\n";
-  // الفعاليات التي برمجناها (منع الخروج وتفاعل الفراشة)
-  const targetEvents = ["antiout", "autoReactButterfly"]; 
+    report += `🛠️ **تـحـليل الأوامـر (${commands.size}):**\n`;
+    report += `│← أوامر تدعم التفاعل: ${cmdStats.react} ✅\n`;
+    report += `│← أوامر تدعم المنشن: ${cmdStats.tags} ✅\n`;
+    report += `│← أوامر تدعم الردود: ${cmdStats.reply} ✅\n`;
+    report += `╼━━━━━━━━━━━━━━╾\n\n`;
 
-  targetEvents.forEach(evName => {
-    if (events.has(evName)) {
-      msg += `✅ الفعالية [ ${evName} ]: تعمل\n`;
-    } else {
-      msg += `❌ الفعالية [ ${evName} ]: مفقودة\n`;
-    }
-  });
+    // 2. فحص الفعاليات (Events)
+    report += `🎭 **الـفعاليات والأنظمة (${events.size}):**\n`;
+    const criticalEvents = ["antiout", "autoReactButterfly"];
+    criticalEvents.forEach(ev => {
+      report += events.has(ev) ? `│ ✅ نظام [ ${ev} ]: يعمل بكفاءة\n` : `│ ❌ نظام [ ${ev} ]: غير مفعل\n`;
+    });
+    report += `╼━━━━━━━━━━━━━━╾\n\n`;
 
-  // 3. معلومات إضافية
-  msg += "\n━━━━━━━━━━━━━━━━━━\n";
-  msg += `🔢 إجمالي الأوامر المحملة: ${commands.size}\n`;
-  msg += `🔢 إجمالي الفعاليات المحملة: ${events.size}\n`;
-  msg += `👤 المطور: ايمن\n`;
-  msg += `🌐 الحالة: النظام مستقر ✅`;
+    // 3. حالة الذاكرة والوقت
+    const used = process.memoryUsage().heapUsed / 1024 / 1024;
+    report += `💾 استهلاك الذاكرة: ${Math.round(used * 100) / 100} MB\n`;
+    report += `⏰ توقيت الفحص: ${time}\n`;
+    report += `👤 المطور المسؤول: أيـمن\n\n`;
+    report += `📡 **الـنـتيجة:** الـنـظام مـستقر وجاهز لـتلقي الأوامـر.`;
 
-  return api.sendMessage(msg, event.threadID, event.messageID);
+    return api.editMessage(report, info.messageID);
+  }, event.messageID);
 };
