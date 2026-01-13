@@ -1,11 +1,13 @@
 const axios = require("axios");
+const fs = require("fs-extra");
+const path = require("path");
 
 module.exports.config = {
   name: "تيك",
-  version: "25.0.0",
+  version: "25.1.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "تحميل تيك توك بـ 25 مصدر سريع",
+  description: "تحميل تيك توك سريع بدون علامة مائية",
   commandCategory: "ميديا",
   usePrefix: true
 };
@@ -15,28 +17,44 @@ module.exports.run = async function({ api, event, args }) {
   const url = args[0];
   if (!url) return api.sendMessage("◯ ضع رابط تيك توك!", threadID, messageID);
 
-  api.sendMessage("◈ جاري البحث في 25 سيرفر تيك... [ 3 ]", threadID, async (err, info) => {
-    const sources = [
-      `https://api.tiklydown.eu.org/api/download?url=${url}`,
-      `https://www.tikwm.com/api/?url=${url}`,
-      `https://api.samirxpikachu.it.com/tiktok?url=${url}`
-      // ... (تكملة الـ 25 مصدر)
-    ];
+  const loading = await api.sendMessage("◈ جاري البحث عن الفيديو... [ 3 ]", threadID, messageID);
+  setTimeout(() => api.editMessage("◈ جاري البحث عن الفيديو... [ 2 ]", loading.messageID), 1000);
+  setTimeout(() => api.editMessage("◈ جاري البحث عن الفيديو... [ 1 ]", loading.messageID), 2000);
 
-    for (let src of sources) {
-      try {
-        const res = await axios.get(src);
-        const video = res.data.video || res.data.result?.video || res.data.data?.play;
+  const sources = [
+    `https://api.tikwm.com/v1/video/info?url=${encodeURIComponent(url)}`,
+    `https://api.tikdown.org/api/download?url=${encodeURIComponent(url)}`,
+    `https://api.snaptik.app/aweme?url=${encodeURIComponent(url)}`
+    // يمكنك إضافة المزيد من المصادر الموثوقة هنا
+  ];
 
-        if (video) {
-          const stream = await axios.get(video, { responseType: "stream" });
-          return api.sendMessage({
-            body: `◈ ───『 تـيـك تـوك 』─── ◈\n\n◉ تم التحميل بدون علامة مائية\n\n◈ ─────────────── ◈`,
-            attachment: stream.data
-          }, threadID, () => api.unsendMessage(info.messageID), messageID);
-        }
-      } catch (e) { continue; }
-    }
-    api.editMessage("❌ فشل في جلب الفيديو من 25 مصدر.", info.messageID);
-  }, messageID);
+  let success = false;
+  for (let src of sources) {
+    try {
+      const res = await axios.get(src);
+      let videoLink = res.data.video || res.data.result?.video || res.data.data?.play || res.data?.play_url;
+
+      if (videoLink) {
+        // تنزيل الفيديو مؤقتًا
+        const videoPath = path.join(__dirname, `cache/tiktok_${Date.now()}.mp4`);
+        const videoRes = await axios.get(videoLink, { responseType: "arraybuffer" });
+        fs.writeFileSync(videoPath, videoRes.data);
+
+        await api.sendMessage({
+          body: "◈ ───『 تـيـك تـوك 』─── ◈\n\n◉ تم التحميل بدون علامة مائية\n\n◈ ─────────────── ◈",
+          attachment: fs.createReadStream(videoPath)
+        }, threadID, () => {
+          fs.unlinkSync(videoPath);
+          api.unsendMessage(loading.messageID);
+        }, messageID);
+
+        success = true;
+        break;
+      }
+    } catch (e) { continue; }
+  }
+
+  if (!success) {
+    api.editMessage("❌ فشل في جلب الفيديو من جميع المصادر المتاحة.", loading.messageID);
+  }
 };
