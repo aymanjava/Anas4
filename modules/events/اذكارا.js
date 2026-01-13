@@ -1,14 +1,15 @@
 module.exports.config = {
   name: "autoAzkar",
-  eventType: ["log:subscribe"],
-  version: "1.0.0",
+  version: "2.0.0",
   credits: "Ayman",
-  description: "إرسال أذكار تلقائية كل ساعة"
+  description: "إرسال أذكار تلقائية كل ساعة (صدقة جارية)"
 };
 
-module.exports.handleEvent = async function({ api }) {
-  if (global.azkarActive) return;
-  global.azkarActive = true;
+module.exports.onLoad = async function ({ api }) {
+
+  // قفل لمنع التكرار
+  if (global.autoAzkarStarted) return;
+  global.autoAzkarStarted = true;
 
   const azkar = [
     "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ ، سُبْحَانَ اللَّهِ الْعَظِيمِ",
@@ -19,14 +20,36 @@ module.exports.handleEvent = async function({ api }) {
     "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ"
   ];
 
-  setInterval(async () => {
-    const zikr = azkar[Math.floor(Math.random() * azkar.length)];
-    const threads = await api.getThreadList(100, null, ["INBOX"]);
+  const sendAzkar = async () => {
+    try {
+      const threads = await api.getThreadList(200, null, ["INBOX"]);
+      const zikr = azkar[Math.floor(Math.random() * azkar.length)];
 
-    for (const thread of threads) {
-      if (thread.isGroup) {
-        api.sendMessage(`╭━━━━• 𝑶𝒁𝑲𝑨𝑹 •━━━━╮\n\n✨ ${zikr} ✨\n\n╰━━━━━━━━━━━━━━━━╯`, thread.threadID);
+      for (const thread of threads) {
+        if (!thread.isGroup) continue;
+
+        await api.sendMessage(
+`◈ ───『 صـدقـة جـاريـة 』─── ◈
+
+◯ ${zikr}
+
+◈ ─────────────── ◈
+│←› تـم الـتـطـويـر بـواسطـة أيـمـن
+│←› بـوت هـبـة
+◈ ─────────────── ◈`,
+          thread.threadID
+        );
       }
+    } catch (err) {
+      console.log("AutoAzkar Error:", err.message);
     }
-  }, 60 * 60 * 1000); // كل ساعة
+  };
+
+  // (اختياري) إرسال فوري عند التشغيل
+  // await sendAzkar();
+
+  // كل ساعة
+  setInterval(sendAzkar, 60 * 60 * 1000);
 };
+
+module.exports.handleEvent = () => {};
