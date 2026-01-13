@@ -15,8 +15,8 @@
   "author": "Ayman",
   "license": "ISC",
   "dependencies": {
+    "openai": "^4.28.0",
     "gpti": "latest",
-    "openai": "^3.3.0",
     "@distube/ytdl-core": "^4.13.2",
     "@dongdev/fca-unofficial": "^1.0.20",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
