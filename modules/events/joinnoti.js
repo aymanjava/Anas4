@@ -1,91 +1,58 @@
+const { createCanvas, loadImage, registerFont } = require("canvas");
+const fs = require("fs-extra");
+const axios = require("axios");
+
 module.exports.config = {
-  name: "joinNoti",
-  eventType: ["log:subscribe"],
-  version: "1.0.1",
-  credits: "Mirai Team",
-  description: "إشعار انضمام معرب ومزخرف",
-  dependencies: {
-    "fs-extra": ""
-  }
+  name: "ترحيب",
+  version: "1.0.0",
+  credits: "Ayman",
+  description: "يرسل صورة ترحيبية عند دخول عضو جديد"
 };
 
-module.exports.run = async function({ api, event, Users }) {
-  const { threadID } = event;
+module.exports.run = async function({ api, event }) {
+  const { threadID, senderID } = event;
+  const path = __dirname + `/cache/welcome_${senderID}.png`;
 
-  // عند دخول البوت للمجموعة
-  if (event.logMessageData.addedParticipants.some(i => i.userFbId == api.getCurrentUserID())) {
-    api.changeNickname(`[ ${global.config.PREFIX} ] • ${(!global.config.BOTNAME) ? "𝙃𝙄𝘽𝘼" : global.config.BOTNAME}`, threadID, api.getCurrentUserID());
-    api.sendMessage(`╭─────────────╮\n    💎 تـم تـفـعـيـل الـبـوت بـنـجـاح\n╰─────────────╯`, threadID);
-  } else {
-    try {
-      const { createReadStream, existsSync } = global.nodemodule["fs-extra"];
-      const { threadName, participantIDs } = await api.getThreadInfo(threadID);
+  try {
+    // جلب بيانات المستخدم
+    const info = await api.getUserInfo(senderID);
+    const name = info[senderID].name;
+    const avatarURL = `https://graph.facebook.com/${senderID}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
 
-      const nameArray = [];
-      const mentions = [];
-      const memLength = [];
-      let i = 0;
+    const canvas = createCanvas(1200, 600);
+    const ctx = canvas.getContext("2d");
 
-      for (const id in event.logMessageData.addedParticipants) {
-        const userName = event.logMessageData.addedParticipants[id].fullName;
-        nameArray.push(userName);
-        mentions.push({ tag: userName, id });
-        memLength.push(participantIDs.length - i++);
+    // رسم الخلفية (لون داكن فخم)
+    ctx.fillStyle = "#0f0f0f";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        if (!global.data.allUserID.includes(id)) {
-          await Users.createData(id, { name: userName, data: {} });
-          global.data.userName.set(id, userName);
-          global.data.allUserID.push(id);
-        }
-      }
-      memLength.sort((a, b) => a - b);
+    // رسم دائرة لصورة البروفايل
+    const avatar = await loadImage(avatarURL);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(600, 200, 150, 0, Math.PI * 2, true);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(avatar, 450, 50, 300, 300);
+    ctx.restore();
 
-      const threadData = global.data.threadData.get(parseInt(threadID)) || {};
-      let msg = "";
+    // نصوص الترحيب المزخرفة
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.font = "bold 60px Arial";
+    ctx.fillText(`✨ أهـلاً بـك فـي الـمـجـمـوعـة ✨`, 600, 420);
+    
+    ctx.fillStyle = "#00ccff";
+    ctx.font = "50px Arial";
+    ctx.fillText(name, 600, 500);
 
-      // العبارة المعربة والمزخرفة
-      if (typeof threadData.customJoin === "undefined") {
-        msg = `╭─────────────╮\n    💎 أهـلاً بـك [ {name} ]\n    ✨ نـورت مـجـمـوعـة: [ {threadName} ]\n╰─────────────╯\n🔳 أنـت الـعـضـو رَقـم: [ {soThanhVien} ]\n🔳 بـواسطـة: [ {author} ]\n🔳 الـتـوقـيـت: [ {get} ]\n🔳 الـتـاريـخ: [ {bok} ]\n\n✨ نـتـمـنى لـك وقـتـاً مـمـتـعـاً ✨`;
-      } else {
-        msg = threadData.customJoin;
-      }
+    fs.writeFileSync(path, canvas.toBuffer());
+    api.sendMessage({
+      body: `✨ **مـرحـبـاً بـك فـي عـالـمـنـا** ✨\n━━━━━━━━━━━━━━\nنورت الجروب يا بطل! نتمنى لك وقتاً ممتعاً.`,
+      attachment: fs.createReadStream(path)
+    }, threadID, () => fs.unlinkSync(path));
 
-      const getData = await Users.getData(event.author);
-      const nameAuthor = typeof getData.name === "undefined" ? "رابط انضمام" : getData.name;
-
-      const moment = require("moment-timezone");
-      const time = moment.tz("Asia/Baghdad");
-      const gio = time.format("HH");
-      const bok = time.format("DD/MM/YYYY || HH:mm:ss");
-
-      let get = "";
-      if (gio >= 5 && gio < 11) get = "صباح الخير ☕";
-      if (gio >= 11 && gio < 15) get = "وقت الظهيرة ☀️";
-      if (gio >= 15 && gio < 19) get = "وقت المساء 🌆";
-      if (gio >= 19 || gio < 5) get = "ليلة سعيدة ✨";
-
-      msg = msg
-        .replace(/\{name}/g, nameArray.join(", "))
-        .replace(/\{type}/g, memLength.length > 1 ? "كم" : "ك")
-        .replace(/\{soThanhVien}/g, memLength.join(", "))
-        .replace(/\{threadName}/g, threadName)
-        .replace(/\{get}/g, get)
-        .replace(/\{author}/g, nameAuthor)
-        .replace(/\{bok}/g, bok);
-
-      const path = require("path");
-      const pathGif = path.join(__dirname, "cache", "joinGif", `1.mp4`); // تأكدي من مسار ملف الترحيب إذا وجد
-
-      let formPush;
-      if (existsSync(pathGif)) {
-        formPush = { body: msg, attachment: createReadStream(pathGif), mentions };
-      } else {
-        formPush = { body: msg, mentions };
-      }
-
-      return api.sendMessage(formPush, threadID);
-    } catch (e) {
-      console.log(e);
-    }
+  } catch (e) {
+    api.sendMessage("❌ فشل في إنشاء صورة الترحيب.", threadID);
   }
 };
