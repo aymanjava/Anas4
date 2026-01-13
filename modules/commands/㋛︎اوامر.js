@@ -1,91 +1,66 @@
 module.exports.config = {
-  name: "اوامر",
-  version: "2.0.0",
+  name: "الاوامر",
+  version: "20.0.0",
   hasPermssion: 0,
-  credits: "Hiba",
-  description: "قائمة الأوامر بنظام الأرقام والردود",
+  credits: "Ayman",
+  description: "ديوان الأوامر الرسمي لإمبراطورية هبة",
   commandCategory: "النظام",
-  usages: "[رقم الفئة / اسم الأمر]",
+  usages: "[اسم الأمر]",
   cooldowns: 5
 };
 
-module.exports.handleReply = async function ({ api, event, handleReply }) {
+module.exports.run = async ({ api, event, args }) => {
+  const { threadID, messageID, senderID } = event;
   const { commands } = global.client;
-  const { threadID, messageID, body } = event;
   const prefix = global.config.PREFIX;
 
-  // إذا كان الرد على قائمة الفئات الرئيسية
-  if (handleReply.type === "category") {
-    const categoryName = handleReply.allCategories[parseInt(body) - 1];
-    if (!categoryName) return api.sendMessage("❌ رقم غير صالح، اختر رقم من القائمة.", threadID, messageID);
+  // --- حصرياً: الفئات السيادية المعتمدة ---
+  const validCategories = ["المطور", "النظام", "خدمات", "صور", "العاب"];
 
-    const categoryCommands = Array.from(commands.values()).filter(cmd => cmd.config.commandCategory === categoryName);
-    
-    let msg = `◈ ───『 فئة: ${categoryName} 』─── ◈\n\n`;
-    categoryCommands.forEach((cmd, index) => {
-      msg += ` [ ${index + 1} ] ◉ ${cmd.config.name}\n`;
+  if (!args[0]) {
+    let msg = `◈ ───『 ديـوان هـبـة الـمـلكي 』─── ◈\n\n`;
+    const categories = {};
+
+    // تصنيف الأوامر وتغيير الفئات الزائدة تلقائياً
+    commands.forEach((cmd, name) => {
+      let category = cmd.config.commandCategory || "خدمات";
+      
+      // إذا كانت الفئة غير معتمدة، يتم تحويلها للأقرب
+      if (!validCategories.includes(category)) {
+        if (category.includes("ادمن") || category.includes("تعديل")) category = "المطور";
+        else if (category.includes("ترفيه") || category.includes("تسلية")) category = "العاب";
+        else if (category.includes("معلومات")) category = "النظام";
+        else category = "خدمات"; // الافتراضي
+      }
+
+      if (!categories[category]) categories[category] = [];
+      categories[category].push(name);
     });
-    msg += `\n———————————————\n│←› رد برقم الأمر أو اسمه للتفاصيل\n◈ ─────────────── ◈`;
 
-    return api.sendMessage(msg, threadID, (err, info) => {
-      global.client.handleReply.push({
-        name: this.config.name,
-        messageID: info.messageID,
-        type: "commandDetail",
-        commands: categoryCommands
-      });
-    }, messageID);
-  }
-
-  // إذا كان الرد لعرض تفاصيل أمر معين
-  if (handleReply.type === "commandDetail") {
-    let command;
-    if (isNaN(body)) {
-      command = commands.get(body.toLowerCase());
-    } else {
-      command = handleReply.commands[parseInt(body) - 1];
+    for (const cat in categories) {
+      msg += `📜 【 ${cat} 】\n`;
+      msg += `← ${categories[cat].join(", ")}\n\n`;
     }
 
-    if (!command) return api.sendMessage("❌ الأمر غير موجود.", threadID, messageID);
-
-    const config = command.config;
-    let msg = `◈ ───『 تفاصيل الأمر 』─── ◈\n\n`;
-    msg += `◉ الاسـم: ${config.name}\n`;
-    msg += `◉ الوصـف: ${config.description}\n`;
-    msg += `◉ الطريقة: ${prefix}${config.name} ${config.usages || ""}\n`;
-    msg += `◉ الانتظار: ${config.cooldowns} ثانية\n\n`;
+    msg += `————————————————\n`;
+    msg += `💡 اكـتـب [ ${prefix}الاوامر + اسم الامر ] لـلتـفاصيـل.\n`;
+    msg += `👑 الـسلطة الـمطلـقة: الـتـوب ايـمـن\n`;
     msg += `◈ ──────────────── ◈`;
+
     return api.sendMessage(msg, threadID, messageID);
   }
-};
 
-module.exports.run = async function ({ api, event }) {
-  const { commands } = global.client;
-  const { threadID, messageID } = event;
+  // --- تفاصيل أمر محدد ---
+  const command = commands.get(args[0].toLowerCase());
+  if (!command) return api.sendMessage("⚠️ هذا الأمر غير موجود في أرشيفنا الملكي.", threadID, messageID);
 
-  const categories = [];
-  for (const [name, command] of commands) {
-    const cat = command.config.commandCategory || "إضافات";
-    if (!categories.includes(cat)) categories.push(cat);
-  }
+  const { name, description, usages, cooldowns } = command.config;
+  let detailMsg = `◈ ───『 وثـيـقـة الأمـر 』─── ◈\n\n` +
+                  `🔹 الاسـم: ${name}\n` +
+                  `📝 الـوصـف: ${description}\n` +
+                  `🛠️ الاسـتـخدام: ${prefix}${name} ${usages}\n` +
+                  `⏳ الانتظار: ${cooldowns} ثانية\n\n` +
+                  `◈ ──────────────── ◈`;
 
-  let msg = `◈ ───『 قائمة الاوامر 』─── ◈\n\n`;
-  categories.forEach((cat, index) => {
-    msg += ` ◯ [ ${index + 1} ] : ${cat}\n`;
-  });
-
-  msg += `\n———————————————\n`;
-  msg += `│←› عدد الفئات: ${categories.length}\n`;
-  msg += `│←› رد برقم القسم لعرض الأوامر\n`;
-  msg += `│←› المطور: 『 ايمن 』\n`;
-  msg += `◈ ─────────────── ◈`;
-
-  return api.sendMessage(msg, threadID, (err, info) => {
-    global.client.handleReply.push({
-      name: this.config.name,
-      messageID: info.messageID,
-      type: "category",
-      allCategories: categories
-    });
-  }, messageID);
+  return api.sendMessage(detailMsg, threadID, messageID);
 };
