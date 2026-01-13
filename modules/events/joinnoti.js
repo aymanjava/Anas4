@@ -3,7 +3,7 @@ module.exports.config = {
   eventType: ["log:subscribe"],
   version: "1.0.1",
   credits: "Mirai Team",
-  description: "Thông báo bot hoặc người vào nhóm",
+  description: "إشعار انضمام معرب ومزخرف",
   dependencies: {
     "fs-extra": ""
   }
@@ -12,12 +12,13 @@ module.exports.config = {
 module.exports.run = async function({ api, event, Users }) {
   const { threadID } = event;
 
+  // عند دخول البوت للمجموعة
   if (event.logMessageData.addedParticipants.some(i => i.userFbId == api.getCurrentUserID())) {
-    api.changeNickname(`[ ${global.config.PREFIX} ] • ${(!global.config.BOTNAME) ? "Made by CatalizCS and SpermLord" : global.config.BOTNAME}`, threadID, api.getCurrentUserID());
-    api.sendMessage(`[𝐊𝐞̂́𝐭 𝐍𝐨̂́𝐢 𝐓𝐡𝐚̀𝐧𝐡 𝐂𝐨̂𝐧𝐠]`, threadID);
+    api.changeNickname(`[ ${global.config.PREFIX} ] • ${(!global.config.BOTNAME) ? "𝙃𝙄𝘽𝘼" : global.config.BOTNAME}`, threadID, api.getCurrentUserID());
+    api.sendMessage(`╭─────────────╮\n    💎 تـم تـفـعـيـل الـبـوت بـنـجـاح\n╰─────────────╯`, threadID);
   } else {
     try {
-      const { createReadStream, existsSync, mkdirSync } = global.nodemodule["fs-extra"];
+      const { createReadStream, existsSync } = global.nodemodule["fs-extra"];
       const { threadName, participantIDs } = await api.getThreadInfo(threadID);
 
       const nameArray = [];
@@ -42,29 +43,30 @@ module.exports.run = async function({ api, event, Users }) {
       const threadData = global.data.threadData.get(parseInt(threadID)) || {};
       let msg = "";
 
+      // العبارة المعربة والمزخرفة
       if (typeof threadData.customJoin === "undefined") {
-        msg = `✿——————————————✿\n𝐗𝐢𝐧 𝐜𝐡𝐚̀𝐨: [ {name} ]\n𝐂𝐡𝐚̀𝐨 𝐦𝐮̛̀𝐧𝐠 𝐛𝐚̣𝐧 𝐝̄𝐞̂́𝐧 𝐯𝐨̛́𝐢: [ {threadName} ]\n𝐁𝐚̣𝐧 𝐥𝐚̀ 𝐭𝐡𝐚̀𝐧𝐡 𝐯𝐢𝐞̂𝐧 𝐬𝐨̂́: [ {soThanhVien} ]\n𝐃̄𝐮̛𝐨̛̣𝐜 𝐭𝐡𝐞̂𝐦 𝐛𝐨̛̉𝐢: [ {author} ]\n𝐂𝐡𝐮́𝐜 𝐛𝐚̣𝐧 𝐜𝐨́ 𝐦𝐨̣̂𝐭 𝐧𝐠𝐚̀𝐲 𝐯𝐮𝐢 𝐯𝐞̉ 💝\n✿——————————————✿`;
+        msg = `╭─────────────╮\n    💎 أهـلاً بـك [ {name} ]\n    ✨ نـورت مـجـمـوعـة: [ {threadName} ]\n╰─────────────╯\n🔳 أنـت الـعـضـو رَقـم: [ {soThanhVien} ]\n🔳 بـواسطـة: [ {author} ]\n🔳 الـتـوقـيـت: [ {get} ]\n🔳 الـتـاريـخ: [ {bok} ]\n\n✨ نـتـمـنى لـك وقـتـاً مـمـتـعـاً ✨`;
       } else {
         msg = threadData.customJoin;
       }
 
       const getData = await Users.getData(event.author);
-      const nameAuthor = typeof getData.name === "undefined" ? "link join" : getData.name;
+      const nameAuthor = typeof getData.name === "undefined" ? "رابط انضمام" : getData.name;
 
-      const time = require("moment-timezone").tz("Asia/Ho_Chi_Minh");
-      const gio = time.format("HH");
       const moment = require("moment-timezone");
-      const bok = moment.tz("Asia/Ho_Chi_Minh").format("DD/MM/YYYY" || "HH:mm:ss");
+      const time = moment.tz("Asia/Baghdad");
+      const gio = time.format("HH");
+      const bok = time.format("DD/MM/YYYY || HH:mm:ss");
 
       let get = "";
-      if (gio >= 5) get = "𝐁𝐮𝐨̂̉𝐢 𝐒𝐚́𝐧𝐠";
-      if (gio >= 11) get = "𝐁𝐮𝐨̂̉𝐢 𝐓𝐫𝐮̛𝐚";
-      if (gio >= 14) get = "𝐁𝐮𝐨̂̉𝐢 𝐂𝐡𝐢Ề̀u";
-      if (gio >= 19) get = "𝐁𝐮𝐨̂̉𝐢 𝐓𝐨̂́𝐢";
+      if (gio >= 5 && gio < 11) get = "صباح الخير ☕";
+      if (gio >= 11 && gio < 15) get = "وقت الظهيرة ☀️";
+      if (gio >= 15 && gio < 19) get = "وقت المساء 🌆";
+      if (gio >= 19 || gio < 5) get = "ليلة سعيدة ✨";
 
       msg = msg
         .replace(/\{name}/g, nameArray.join(", "))
-        .replace(/\{type}/g, memLength.length > 1 ? "𝐜𝐚́𝐜 𝐛𝐚̣𝐧" : "𝐛𝐚̣𝐧")
+        .replace(/\{type}/g, memLength.length > 1 ? "كم" : "ك")
         .replace(/\{soThanhVien}/g, memLength.join(", "))
         .replace(/\{threadName}/g, threadName)
         .replace(/\{get}/g, get)
@@ -72,14 +74,9 @@ module.exports.run = async function({ api, event, Users }) {
         .replace(/\{bok}/g, bok);
 
       const path = require("path");
-      const pathGif = path.join(__dirname, "cache", "joinGif", `${1}.mp5`);
+      const pathGif = path.join(__dirname, "cache", "joinGif", `1.mp4`); // تأكدي من مسار ملف الترحيب إذا وجد
 
-      if (existsSync(pathGif)) {
-        formPush = { body: msg, attachment: createReadStream(pathGif), mentions };
-      } else {
-        formPush = { body: msg, mentions };
-      }
-
+      let formPush;
       if (existsSync(pathGif)) {
         formPush = { body: msg, attachment: createReadStream(pathGif), mentions };
       } else {
