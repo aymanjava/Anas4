@@ -1,50 +1,87 @@
 module.exports.config = {
-    name: "antiout",
-    eventType: ["log:unsubscribe"],
-    version: "1.1.0",
-    credits: "DungUwU",
-    description: "نظام هبة لمنع الهروب من المجموعة"
+  name: "antiout",
+  eventType: ["log:unsubscribe"],
+  version: "2.0.0",
+  credits: "Ayman",
+  description: "نظام منع الهروب من المجموعة"
 };
 
-module.exports.handleEvent = async ({ event, api, Threads, Users }) => {
-    const { threadID, logMessageData, author } = event;
-    
-    // جلب البيانات - تأكد من تفعيل الأمر في المجموعة أولاً
-    let data = (await Threads.getData(threadID)).data || {};
-    if (data.antiout === undefined || data.antiout === false) return; 
+module.exports.handleEvent = async ({ api, event, Threads, Users }) => {
+  const { threadID, logMessageData } = event;
 
-    const idUser = logMessageData.leftParticipantFbId;
-    if (idUser == api.getCurrentUserID()) return;
+  if (!logMessageData) return;
 
-    try {
-        const name = await Users.getNameUser(idUser);
-        
-        // إذا كان الشخص هو من خرج بنفسه
-        if (author == idUser) {
-            return api.addUserToGroup(idUser, threadID, (err) => {
-                if (err) {
-                    return api.sendMessage(`🎀 [ ${name} ]\nحاولت أرجعك لبيتك بس إعداداتك منعتني.. 🌸`, threadID);
-                } else {
-                    return api.sendMessage(`🎀 مـمنوع الهروب يـا [ ${name} ]\nرجعتك لمكانك، لا تعيدها مرة ثانية.. ✨`, threadID);
-                }
-            });
-        } else {
-            // إذا تم طرده
-            return api.sendMessage(`🚪 وداعاً [ ${name} ]\nتم إخراجه بواسطة المسؤول.. ✨`, threadID);
+  const data = (await Threads.getData(threadID)).data || {};
+  if (data.antiout !== true) return;
+
+  const leftID = logMessageData.leftParticipantFbId;
+  const actorID = logMessageData.actorFbId;
+
+  // لا تتدخل إذا البوت خرج
+  if (leftID == api.getCurrentUserID()) return;
+
+  try {
+    const name = await Users.getNameUser(leftID);
+
+    // إذا خرج بنفسه
+    if (leftID === actorID) {
+      return api.addUserToGroup(leftID, threadID, (err) => {
+        if (err) {
+          return api.sendMessage(
+`◈ ───『 مـنـع الـهـروب 』─── ◈
+
+◯ ${name} حاول يطلع 🏃
+◯ بس إعداداته منعتني أرجعه 😔
+
+◈ ─────────────── ◈`,
+            threadID
+          );
         }
-    } catch (e) {
-        console.log("Antiout Error: " + e);
+
+        api.sendMessage(
+`◈ ───『 مـمـنـوع الـهـروب 』─── ◈
+
+◯ العضو: ${name}
+◯ تم إرجاعه بنجاح ✨
+◯ لا تعيدها مرة ثانية 😌
+
+◈ ─────────────── ◈`,
+          threadID
+        );
+      });
     }
+
+    // إذا طُرد من أدمن
+    return api.sendMessage(
+`◈ ───『 مـغـادرة 』─── ◈
+
+◯ العضو: ${name}
+◯ تم إخراجه بواسطة أحد المشرفين 🚪
+
+◈ ─────────────── ◈`,
+      threadID
+    );
+
+  } catch (e) {
+    console.log("AntiOut Error:", e.message);
+  }
 };
 
-// إضافة وظيفة run فارغة لكي لا يظهر خطأ في بعض أنظمة الفحص
 module.exports.run = async ({ api, event, Threads }) => {
-    const { threadID, messageID } = event;
-    let data = (await Threads.getData(threadID)).data || {};
-    
-    if (typeof data.antiout == "undefined" || data.antiout == false) data.antiout = true;
-    else data.antiout = false;
-    
-    await Threads.setData(threadID, { data });
-    return api.sendMessage(`✨ نظام منع الخروج الآن: ${data.antiout ? "قيد التشغيل ✅" : "متوقف عن العمل ❌"}`, threadID, messageID);
+  const { threadID, messageID } = event;
+
+  const data = (await Threads.getData(threadID)).data || {};
+  data.antiout = !data.antiout;
+
+  await Threads.setData(threadID, { data });
+
+  return api.sendMessage(
+`◈ ───『 مـنـع الـهـروب 』─── ◈
+
+◯ الحالة: ${data.antiout ? "مفعل ✅" : "متوقف ❌"}
+
+◈ ─────────────── ◈`,
+    threadID,
+    messageID
+  );
 };
