@@ -3,13 +3,13 @@ const path = __dirname + '/banking/central_vault.json';
 
 module.exports.config = {
   name: "بنك",
-  version: "5.0.0",
+  version: "6.0.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "الخزينة المركزية الموحدة لكل نقاط الألعاب - نسخة التوب",
+  description: "الخزينة المركزية - نسخة الإمبراطور اللانهائية",
   commandCategory: "الاموال",
-  usages: "[تسجيل/ايداع/سحب/عرض/منح]",
-  cooldowns: 2
+  usages: "[تسجيل/ايداع/سحب/عرض/منح/تصفير]",
+  cooldowns: 0
 };
 
 module.exports.onLoad = async () => {
@@ -20,70 +20,85 @@ module.exports.onLoad = async () => {
 module.exports.run = async function({ api, event, args, Currencies, Users }) {
   const { threadID, messageID, senderID } = event;
   let vault = JSON.parse(fs.readFileSync(path));
+  
+  // نظام التعرف على "التوب" - السيادة المطلقة
   const isTop = global.config.ADMINBOT.includes(senderID);
 
-  // التأكد من وجود حساب في الخزينة
   if (!vault[senderID]) vault[senderID] = { bank_balance: 0, last_interest: Date.now() };
 
   switch(args[0]) {
-    case 'تسجيل': {
-      return api.sendMessage("◈ ──『 الـبـنـك الـمـركـزي 』── ◈\n\n◯ حسابك مفعل تلقائياً ومرتبط بكل الألعاب\n◯ أي نقطة تربحها في (اعلام/محاكي) تظهر هنا\n\n◈ ─────────────── ◈", threadID);
-    }
-
     case 'عرض': {
-      // جلب النقاط من النظام الموحد (التي جمعها من الألعاب)
       let pocketMoney = (await Currencies.getData(senderID)).money || 0;
       let bankMoney = vault[senderID].bank_balance;
       
-      let msg = `◈ ──『 خـزيـنـة: ${isTop ? "الـتـوب ايـمـن" : "الـمـسـتـخـدم"} 』── ◈\n\n`;
-      msg += `💰 نـقاط الألعاب (بجيبك): ${pocketMoney}$\n`;
-      msg += `🏦 الـمـودع فـي البـنـك: ${bankMoney}$\n`;
-      msg += `📈 الإجمالي الشامل: ${pocketMoney + bankMoney}$\n\n`;
-      msg += `│←› نـظـام مـوحـد بـإدارة ايـمـن 👑\n`;
+      // إذا كنت أنت "التوب"، الرصيد يظهر كـ لانهائي
+      let displayPocket = isTop ? "∞ (لا نهائي)" : pocketMoney.toLocaleString() + "$";
+      let displayBank = isTop ? "∞ (خزينة الإمبراطور)" : bankMoney.toLocaleString() + "$";
+      
+      let msg = `◈ ──『 خـزيـنـة: ${isTop ? "الـتـوب ايـمـن 👑" : "الـمـسـتـخـدم"} 』── ◈\n\n`;
+      msg += `💰 نـقاط الألعاب (بجيبك): ${displayPocket}\n`;
+      msg += `🏦 المـودع فـي البـنك: ${displayBank}\n`;
+      msg += `📈 الـحـالـة: ${isTop ? "ثـراء فـاحـش (Unlimited)" : "مـواطـن عـادي"}\n\n`;
+      msg += `│←› الـسـلـطـة الـمـطـلـقـة لـلـتـوب ايـمـن 👑\n`;
       msg += `◈ ─────────────── ◈`;
       return api.sendMessage(msg, threadID, messageID);
     }
 
     case 'ايداع': {
+      if (isTop) return api.sendMessage("👑 سيدي التوب، أموالك لا تحتاج للإيداع، أنت تملك البنك بالكامل!", threadID);
       let pocketMoney = (await Currencies.getData(senderID)).money || 0;
       let depositAmt = args[1] == "كل" ? pocketMoney : parseInt(args[1]);
 
       if (!depositAmt || depositAmt <= 0 || depositAmt > pocketMoney) 
-        return api.sendMessage("◯ المبلغ غير صحيح أو جيبك فارغ!", threadID);
+        return api.sendMessage("◯ المبلغ غير صحيح!", threadID);
 
       await Currencies.decreaseMoney(senderID, depositAmt);
       vault[senderID].bank_balance += depositAmt;
       fs.writeFileSync(path, JSON.stringify(vault, null, 2));
-      
-      return api.sendMessage(`✅ تم نقل ${depositAmt}$ من نقاط الألعاب إلى الخزينة المركزية بنجاح.`, threadID);
+      return api.sendMessage(`✅ تم تأمين ${depositAmt}$ في الخزينة المركزية.`, threadID);
     }
 
     case 'سحب': {
+      if (isTop) {
+        // ميزة السحب اللانهائي للتوب
+        let topAmount = parseInt(args[1]) || 1000000000;
+        await Currencies.increaseMoney(senderID, topAmount);
+        return api.sendMessage(`👑 سيدي التوب.. تم سحب ${topAmount}$ من العدم إلى جيبك بنجاح!`, threadID);
+      }
       let bankMoney = vault[senderID].bank_balance;
       let withdrawAmt = args[1] == "كل" ? bankMoney : parseInt(args[1]);
 
       if (!withdrawAmt || withdrawAmt <= 0 || withdrawAmt > bankMoney) 
-        return api.sendMessage("◯ رصيدك في البنك لا يكفي!", threadID);
+        return api.sendMessage("◯ رصيدك البنكي لا يكفي!", threadID);
 
       await Currencies.increaseMoney(senderID, withdrawAmt);
       vault[senderID].bank_balance -= withdrawAmt;
       fs.writeFileSync(path, JSON.stringify(vault, null, 2));
-      
-      return api.sendMessage(`✅ تم سحب ${withdrawAmt}$ إلى جيبك لاستخدامها في الألعاب.`, threadID);
+      return api.sendMessage(`✅ تم سحب ${withdrawAmt}$ بنجاح.`, threadID);
     }
 
-    // --- صلاحيات التوب فقط ---
     case 'منح': {
       if (!isTop) return api.sendMessage("◯ هـذا الأمـر خـاص بـالـتـوب ايـمـن فـقـط 👑", threadID);
       let amount = parseInt(args[1]);
       let mention = Object.keys(event.mentions)[0];
-      if (!mention || !amount) return api.sendMessage("◯ مـنـشـن الـشـخـص واكـتـب الـمـبـلغ", threadID);
+      if (!mention || !amount) return api.sendMessage("◯ مـنـشـن الـشـخـص واكـتـب الـمـبـلغ سيدي", threadID);
       
       await Currencies.increaseMoney(mention, amount);
-      return api.sendMessage(`👑 سيدي التوب.. تم منح ${amount}$ للمستخدم المذكور من خزينة الإدارة.`, threadID);
+      return api.sendMessage(`👑 أمـرك مـطـاع سيدي التوب.. تم منح ${amount}$ للمحظوظ ${event.mentions[mention].replace("@", "")}.`, threadID);
+    }
+
+    case 'تصفير': {
+      if (!isTop) return api.sendMessage("◯ تـريـد تـصـفـيـر الأمـوال وأنـت لـسـت الـتـوب؟ هـهـه!", threadID);
+      let mention = Object.keys(event.mentions)[0];
+      if (!mention) return api.sendMessage("◯ مـنـشـن الـضحية لـتـصـفـيـر حـسـابـه سيدي", threadID);
+      
+      await Currencies.setData(mention, { money: 0 });
+      if (vault[mention]) vault[mention].bank_balance = 0;
+      fs.writeFileSync(path, JSON.stringify(vault, null, 2));
+      return api.sendMessage(`👑 سيدي التوب.. تم إعلان إفلاس المستخدم بنجاح! رصيده الآن 0$.`, threadID);
     }
 
     default:
-      return api.sendMessage(`◈ ──『 بـنـك هـبـة الـمـركـزي 』── ◈\n\n◯ [ بنك عرض ] : كشف الحساب الشامل\n◯ [ بنك ايداع ] : نقل النقاط للخزينة\n◯ [ بنك سحب ] : استعادة النقاط للعب\n\n│←› الـمـديـر الـعـام: الـتـوب ايـمـن 👑\n◈ ─────────────── ◈`, threadID);
+      return api.sendMessage(`◈ ──『 الـبـنـك الإمـبـراطـوري 』── ◈\n\n◯ [ بنك عرض ] : كشف الثراء\n◯ [ بنك ايداع ] : تأمين النقاط\n◯ [ بنك سحب ] : استدعاء الأموال\n◯ [ بنك منح ] : هبات التوب (للمدراء)\n◯ [ بنك تصفير ] : عقاب التوب (للمدراء)\n\n│←› سـيـد الـخـزيـنـة: الـتـوب ايـمـن 👑`, threadID);
   }
 };
