@@ -1,41 +1,36 @@
 module.exports.config = {
-    name: "existence", // اسم الحدث
-    version: "1.0.0",
+    name: "existence",
+    version: "1.1.0",
     hasPermssion: 0,
     credits: "Ayman",
-    description: "يغادر البوت المجموعة تلقائياً إذا لم يكن الإمبراطور أيمن موجوداً",
+    description: "يغادر البوت تلقائياً إذا لم يكن الشخص المحدد موجوداً",
     commandCategory: "المنتظم",
     usages: "",
     cooldowns: 5
 };
 
 module.exports.handleEvent = async function({ api, event }) {
-    const { threadID, isGroup, senderID } = event;
-    const EMPEROR_ID = "61577861540407"; // معرف حسابك (أيمن التوب)
+    const { threadID, isGroup } = event;
+    const REQUIRED_USER_ID = "61577861540407"; // معرف الشخص المطلوب
 
-    // التأكد أنها مجموعة وليست دردشة خاصة
     if (isGroup) {
         try {
-            // جلب بيانات المجموعة
             const threadInfo = await api.getThreadInfo(threadID);
-            
-            // التحقق هل أنت (أيمن) من ضمن قائمة المشاركين
-            const isEmperorHere = threadInfo.participantIDs.includes(EMPEROR_ID);
+            const isRequiredUserHere = threadInfo.participantIDs.includes(REQUIRED_USER_ID);
 
-            if (!isEmperorHere) {
-                // رسالة الوداع قبل الخروج
-                await api.sendMessage("⚠️ تنبيه نظام: الإمبراطور أيمن التوب غير موجود هنا.\nالبوت مبرمج للمغادرة التلقائية.. وداعاً! 👋", threadID);
+            if (!isRequiredUserHere) {
+                // رسالة وداع هادئة
+                await api.sendMessage("تنبيه: الشخص المطلوب غير موجود. البوت سيغادر المجموعة.", threadID);
                 
-                // الخروج من المجموعة
+                // مغادرة المجموعة
                 return api.removeUserFromGroup(api.getCurrentUserID(), threadID);
             }
         } catch (e) {
-            // في حال حدوث خطأ في جلب البيانات
-            console.log("خطأ في التحقق من وجود الإمبراطور");
+            console.log("خطأ في التحقق من وجود الشخص المطلوب:", e);
         }
     }
 };
 
-module.exports.run = async function({ api, event }) {
-    // هذا الأمر يعمل تلقائياً عند كل رسالة، لا يحتاج تشغيل يدوي
+module.exports.run = async function() {
+    // هذا الحدث يعمل تلقائيًا عند كل رسالة، لا يحتاج تشغيل يدوي
 };
