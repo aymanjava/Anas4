@@ -1,25 +1,25 @@
 module.exports.config = {
   name: "ابلاغ",
-  version: "2.0.0",
+  version: "2.1.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "إرسال بلاغ أو رسالة للإمبراطور أيمن في الخاص",
+  description: "إرسال بلاغ أو رسالة للمسؤول في الخاص",
   commandCategory: "خدمات",
   usages: "[نص المشكلة]",
-  cooldowns: 10,
+  cooldowns: 10
 };
 
 module.exports.handleReply = async function({ api, event, handleReply, Users }) {
-  const { body, senderID, messageID, threadID } = event;
+  const { body, senderID, threadID, messageID } = event;
   const name = (await Users.getData(senderID)).name;
 
   switch (handleReply.type) {
-    // رديّة المستخدم من المجموعة إلى خاص الإمبراطور
     case "reply": {
+      // إرسال الرد للمسؤولين
       const admins = global.config.ADMINBOT;
       for (let ad of admins) {
         api.sendMessage({
-          body: `◈ ───『 تـكـمـلـة بـلاغ 』─── ◈\n\n◯ مـن: ${name}\n◉ الـرسالة: ${body}\n———————————————\n◈ ─────────────── ◈`,
+          body: `◈ ───『 تـكـمـلـة بـلاغ 』─── ◈\n\n◯ من: ${name}\n◉ الرسالة: ${body}\n◈ ─────────────── ◈`,
           mentions: [{ id: senderID, tag: name }]
         }, ad, (e, data) => global.client.handleReply.push({
           name: this.config.name,
@@ -32,10 +32,11 @@ module.exports.handleReply = async function({ api, event, handleReply, Users }) 
       }
       break;
     }
-    // رديّة الإمبراطور من الخاص إلى مجموعة المستخدم
+
     case "calladmin": {
+      // إرسال رد المسؤول إلى مجموعة المستخدم
       api.sendMessage({
-        body: `◈ ───『 رد الإمـبـراطـور أيـمـن 』─── ◈\n\n${body}\n———————————————\n◯ رد على هذه الرسالة للاستمرار في التواصل.`,
+        body: `◈ ───『 رد المسؤول 』─── ◈\n\n${body}\n◯ للرد، قم بالرد على هذه الرسالة.`,
         mentions: [{ tag: name, id: senderID }]
       }, handleReply.id, (e, data) => global.client.handleReply.push({
         name: this.config.name,
@@ -50,23 +51,26 @@ module.exports.handleReply = async function({ api, event, handleReply, Users }) 
 
 module.exports.run = async function({ api, event, args, Users }) {
   const { threadID, messageID, senderID } = event;
-  if (!args[0]) return api.sendMessage("⚠️ سيدي، يرجى كتابة محتوى البلاغ لإرساله.", threadID, messageID);
+  if (!args[0]) return api.sendMessage("⚠️ يرجى كتابة محتوى البلاغ لإرساله.", threadID, messageID);
 
   const name = (await Users.getData(senderID)).name;
   const threadInfo = await api.getThreadInfo(threadID);
   const threadName = threadInfo.name || "محادثة خاصة";
-  
+
   const moment = require("moment-timezone");
   const time = moment.tz("Asia/Baghdad").format("HH:mm:ss | DD/MM/YYYY");
 
-  // إرسال تأكيد للمستخدم في المجموعة
-  api.sendMessage("◈ ───『 تـم الإرسـال ✅ 』─── ◈\n\n◯ سيدي، تم إرسال بلاغك إلى الإمبراطور أيمن في الخاص.\n◉ سيصلك الرد هنا فور مراجعته.\n———————————————\n◈ ─────────────── ◈", threadID, messageID);
+  // رسالة تأكيد للمستخدم
+  api.sendMessage(
+    "◈ ───『 تـم الإرسـال ✅ 』─── ◈\n\n◯ تم إرسال بلاغك إلى المسؤول.\n◉ سيصلك الرد هنا فور مراجعته.\n◈ ─────────────── ◈",
+    threadID, messageID
+  );
 
-  // إرسال البلاغ لخاص الأدمن (الإمبراطور)
+  // إرسال البلاغ إلى المسؤولين
   const admins = global.config.ADMINBOT;
   for (let ad of admins) {
     api.sendMessage({
-      body: `◈ ───『 بـلاغ جـديـد 📩 』─── ◈\n\n👤 الـمُبلغ: ${name}\n🆔 مـعرفه: ${senderID}\n🏘️ الـمجموعة: ${threadName}\n🆔 مـعرفها: ${threadID}\n———————————————\n📝 الـمشكلة:\n${args.join(" ")}\n———————————————\n⏳ الـوقت: ${time}\n◈ ─────────────── ◈`,
+      body: `◈ ───『 بلاغ جديد 📩 』─── ◈\n\n👤 المبلغ: ${name}\n🆔 معرفه: ${senderID}\n🏘️ المجموعة: ${threadName}\n🆔 معرفها: ${threadID}\n———————————————\n📝 المشكلة:\n${args.join(" ")}\n———————————————\n⏳ الوقت: ${time}\n◈ ─────────────── ◈`
     }, ad, (error, info) =>
       global.client.handleReply.push({
         name: this.config.name,
