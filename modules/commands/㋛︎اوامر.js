@@ -1,60 +1,86 @@
-const fs = require("fs");
 const { setTimeout } = require("timers/promises");
 
 module.exports.config = {
   name: "اوامر",
-  version: "2.1.0",
+  version: "2.2.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "قائمة أوامر البوت هبة مع فئة اسلاميات، اختيار سريع بالرقم فقط",
+  description: "قائمة أوامر البوت بنظام فئات + اختيار بالرد",
   commandCategory: "النظام",
-  usages: "[رقم الفئة]",
-  usePrefix: true,
+  usages: "",
   cooldowns: 5
 };
 
-module.exports.run = async function ({ api, event, args, Commands }) {
-  const { threadID, messageID } = event;
+module.exports.run = async function ({ api, event }) {
+  const { threadID, messageID, senderID } = event;
 
-  // تنظيم الأوامر حسب الفئات (مع فئة اسلاميات)
+  const msg =
+`◈ ───『 اختر رقم الفئة 』─── ◈
+
+1 ⟢ فئة الترفيه
+2 ⟢ فئة الذكاء AI
+3 ⟢ فئة الإدارة
+4 ⟢ فئة الألعاب
+5 ⟢ فئة المتفرقات
+6 ⟢ فئة اسلاميات
+
+◯ فقط قم بالرد بالرقم
+`;
+
+  const sent = await api.sendMessage(msg, threadID, messageID);
+
+  global.client.handleReply.push({
+    name: this.config.name,
+    messageID: sent.messageID,
+    author: senderID
+  });
+
+  setTimeout(120000).then(() => api.unsendMessage(sent.messageID));
+};
+
+module.exports.handleReply = async function ({ api, event, handleReply, Commands }) {
+  const { threadID, messageID, senderID, body } = event;
+
+  if (senderID !== handleReply.author) return;
+
   const categories = {
     "1": "فئة الترفيه",
     "2": "فئة الذكاء AI",
-    "3": "فئة الإدارة والأنظمة",
+    "3": "فئة الإدارة",
     "4": "فئة الألعاب",
     "5": "فئة المتفرقات",
     "6": "فئة اسلاميات"
   };
 
-  // إذا الرقم غير صحيح أو فارغ، عرض رسالة تذكيرية
-  const chosen = args[0];
-  if (!chosen || !categories[chosen]) {
-    const msg = "◈ ───『أدخل رقم الفئة فقط』─── ◈\n\n" +
-                "1 ⟢ فئة الترفيه\n" +
-                "2 ⟢ فئة الذكاء AI\n" +
-                "3 ⟢ فئة الإدارة والأنظمة\n" +
-                "4 ⟢ فئة الألعاب\n" +
-                "5 ⟢ فئة المتفرقات\n" +
-                "6 ⟢ فئة اسلاميات\n\n" +
-                "اكتب الرقم فقط لرؤية الأوامر";
-    const sentMsg = await api.sendMessage(msg, threadID, messageID);
-    return setTimeout(120000).then(() => api.unsendMessage(sentMsg.messageID));
+  const chosen = body.trim();
+  if (!categories[chosen]) {
+    return api.sendMessage("⚠️ رقم غير صحيح، أعد المحاولة.", threadID, messageID);
   }
 
-  // جلب قائمة أوامر الفئة المختارة
   const chosenName = categories[chosen];
   const commands = Array.from(Commands.values());
+
   const cmdList = commands
     .filter(cmd => cmd.config.commandCategory === chosenName)
     .map(cmd => cmd.config.name);
 
-  let helpMsg = `◈ ───『${chosenName}』─── ◈\n\n`;
-  helpMsg += cmdList.length > 0 ? cmdList.join(" | ") : "لا توجد أوامر في هذه الفئة حالياً";
-  helpMsg += `\n\n◈ ─────────────── ◈\n`;
-  helpMsg += `│←› عدد الاوامر: ${cmdList.length}\n`;
-  helpMsg += `│←› الرسائل تحذف تلقائياً بعد دقيقتين\n`;
-  helpMsg += `│←› استمتع بـ هبة`;
+  let msg =
+`◈ ───『 ${chosenName} 』─── ◈
 
-  const sentMsg2 = await api.sendMessage(helpMsg, threadID, messageID);
-  setTimeout(120000).then(() => api.unsendMessage(sentMsg2.messageID));
+`;
+
+  msg += cmdList.length
+    ? cmdList.join(" │ ")
+    : "لا توجد أوامر حالياً";
+
+  msg += `
+  
+◈ ─────────────── ◈
+│←› عدد الأوامر: ${cmdList.length}
+│←› يتم الحذف تلقائياً
+│←› Heba System
+`;
+
+  const sent = await api.sendMessage(msg, threadID, messageID);
+  setTimeout(120000).then(() => api.unsendMessage(sent.messageID));
 };
