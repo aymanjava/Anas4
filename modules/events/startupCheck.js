@@ -1,45 +1,47 @@
 module.exports.config = {
   name: "startupCheck",
-  eventType: ["log:subscribe"], // سيعمل عند الإقلاع أيضاً عبر onLoad
-  version: "1.0.0",
+  eventType: ["onLoad"], // أفضل استخدام onLoad للتشغيل عند انطلاق البوت
+  version: "1.1.0",
   credits: "Ayman",
   description: "فحص النظام تلقائياً عند التشغيل وإرسال تقرير للمطور"
 };
 
 module.exports.onLoad = async function ({ api }) {
-  const { commands, events } = global.client;
-  const moment = require("moment-timezone");
-  const time = moment.tz("Asia/Baghdad").format("HH:mm:ss DD/MM/YYYY");
-  
-  // الـ ID الخاص بك (أيمن) لكي تصلك الرسالة
-  const developerID = "61577861540407"; 
+  try {
+    const { commands, events } = global.client;
+    const moment = require("moment-timezone");
+    const time = moment.tz("Asia/Baghdad").format("HH:mm:ss DD/MM/YYYY");
+    
+    const developerID = "61577861540407"; // معرف أيمن
 
-  let report = `🌸 **صـباح الـخير سيدي أيـمن** 🌸\n`;
-  report += `✨ **هـبة الآن قيد التشغيل**\n`;
-  report += `━━━━━━━━━━━━━━━━━━\n\n`;
-  
-  // فحص سريع للأوامر الأساسية
-  const essentials = ["رندر", "هبة", "الاوامر"];
-  let cmdStatus = "";
-  essentials.forEach(cmd => {
-    cmdStatus += commands.has(cmd) ? `✅ ${cmd} | ` : `❌ ${cmd} | `;
-  });
+    // إعداد التقرير
+    let report = `🌸 ◈ ───『 Startup Report 』─── ◈ 🌸\n\n`;
+    report += `✨ هـبة الآن قيد التشغيل\n`;
+    report += `━━━━━━━━━━━━━━━━━━\n\n`;
 
-  // فحص الفعاليات الحساسة
-  const eventStatus = (events.has("antiout") && events.has("autoReactButterfly")) ? "آمنة ✅" : "تحتاج فحص ⚠️";
+    // فحص الأوامر الأساسية
+    const essentials = ["رندر", "هبة", "الاوامر"];
+    let cmdStatus = essentials.map(cmd => commands.has(cmd) ? `✅ ${cmd}` : `❌ ${cmd}`).join(" | ");
 
-  report += `🛠️ الأوامر الأساسية: ${cmdStatus}\n`;
-  report += `🎭 حالة الفعاليات: ${eventStatus}\n`;
-  report += `🔢 إجمالي الأوامر: ${commands.size}\n`;
-  report += `🔢 إجمالي الفعاليات: ${events.size}\n`;
-  report += `⏰ التوقيت: ${time}\n\n`;
-  report += `📡 جـميع الأنظمة تـعمل بـثبات.. جـاهزة لخدمتك!`;
+    // فحص الفعاليات الحرجة
+    const criticalEvents = ["antiout", "autoReactButterfly"];
+    let eventStatus = criticalEvents.map(ev => events.has(ev) ? `✅ ${ev}` : `⚠️ ${ev}`).join(" | ");
 
-  // إرسال التقرير للمطور في الخاص عند بدء التشغيل
-  api.sendMessage(report, developerID, (err) => {
-    if (err) console.log("⚠️ تم تشغيل البوت، لكن لم أستطع إرسال رسالة التقرير للمطور.");
-    else console.log("✅ تم إرسال تقرير التشغيل إلى أيمن بنجاح.");
-  });
+    report += `🛠️ الأوامر الأساسية: ${cmdStatus}\n`;
+    report += `🎭 الفعاليات الحرجة: ${eventStatus}\n`;
+    report += `🔢 إجمالي الأوامر: ${commands.size}\n`;
+    report += `🔢 إجمالي الفعاليات: ${events.size}\n`;
+    report += `⏰ التوقيت: ${time}\n\n`;
+    report += `📡 الأنظمة تعمل بثبات وجاهزة للاستعمال!`;
+
+    // إرسال التقرير
+    api.sendMessage(report, developerID, (err) => {
+      if (err) console.log("⚠️ فشل إرسال تقرير التشغيل للمطور.");
+      else console.log("✅ تم إرسال تقرير التشغيل إلى أيمن بنجاح.");
+    });
+  } catch (e) {
+    console.error("⚠️ خطأ أثناء تشغيل Startup Check:", e);
+  }
 };
 
 module.exports.run = async function({}) {};
