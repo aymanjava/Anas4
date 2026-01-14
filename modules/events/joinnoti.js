@@ -1,12 +1,11 @@
 const { createCanvas, loadImage } = require("canvas");
 const fs = require("fs-extra");
 const path = require("path");
-const axios = require("axios");
 
 module.exports.config = {
   name: "welcome",
   eventType: ["log:subscribe"],
-  version: "2.0.0",
+  version: "2.1.0",
   credits: "Ayman",
   description: "ترحيب بصورة عند دخول عضو جديد"
 };
@@ -42,12 +41,13 @@ module.exports.handleEvent = async function ({ api, event }) {
       ctx.drawImage(avatar, 450, 50, 300, 300);
       ctx.restore();
 
-      // نص الترحيب
+      // نص الترحيب الرئيسي
       ctx.textAlign = "center";
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 58px Arial";
-      ctx.fillText("✨ أهـلاً بـك فـي الـمـجـمـوعـة ✨", 600, 420);
+      ctx.fillText("✨ أهلاً بك في المجموعة ✨", 600, 420);
 
+      // اسم العضو
       ctx.fillStyle = "#00ccff";
       ctx.font = "bold 48px Arial";
       ctx.fillText(userName, 600, 500);
@@ -63,7 +63,6 @@ module.exports.handleEvent = async function ({ api, event }) {
 
 ◈ ─────────────── ◈
 │←› بـوت هـبـة
-│←› تـطـويـر: أيـمـن
 ◈ ─────────────── ◈`,
         attachment: fs.createReadStream(imgPath)
       }, threadID, () => fs.unlinkSync(imgPath));
