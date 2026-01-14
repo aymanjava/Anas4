@@ -3,10 +3,10 @@ const { setTimeout } = require("timers/promises");
 
 module.exports.config = {
   name: "اوامر",
-  version: "2.0.0",
+  version: "2.1.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "قائمة أوامر البوت هبة مع فئة اسلاميات، دعم كامل للرد والتاق والايدي والصور",
+  description: "قائمة أوامر البوت هبة مع فئة اسلاميات، اختيار سريع بالرقم فقط",
   commandCategory: "النظام",
   usages: "[رقم الفئة]",
   usePrefix: true,
@@ -26,53 +26,35 @@ module.exports.run = async function ({ api, event, args, Commands }) {
     "6": "فئة اسلاميات"
   };
 
-  // إذا لم يُحدد رقم الفئة، عرض القائمة الرئيسية
-  if (!args[0] || !categories[args[0]]) {
-    let msg = `◈ ───『قائمة الفئات هبة』─── ◈\n\n`;
-    msg += `اختر رقم الفئة ليتم عرض أوامرها:\n\n`;
-
-    for (let key in categories) {
-      msg += `${key} ⟢ ${categories[key]}\n`;
-    }
-
-    msg += `\nارسل [اوامر + رقم الفئة] لرؤيتها`;
+  // إذا الرقم غير صحيح أو فارغ، عرض رسالة تذكيرية
+  const chosen = args[0];
+  if (!chosen || !categories[chosen]) {
+    const msg = "◈ ───『أدخل رقم الفئة فقط』─── ◈\n\n" +
+                "1 ⟢ فئة الترفيه\n" +
+                "2 ⟢ فئة الذكاء AI\n" +
+                "3 ⟢ فئة الإدارة والأنظمة\n" +
+                "4 ⟢ فئة الألعاب\n" +
+                "5 ⟢ فئة المتفرقات\n" +
+                "6 ⟢ فئة اسلاميات\n\n" +
+                "اكتب الرقم فقط لرؤية الأوامر";
     const sentMsg = await api.sendMessage(msg, threadID, messageID);
-
-    // حذف الرسالة بعد دقيقتين
-    setTimeout(120000).then(() => {
-      api.unsendMessage(sentMsg.messageID);
-    });
-    return;
+    return setTimeout(120000).then(() => api.unsendMessage(sentMsg.messageID));
   }
 
-  // عرض أوامر الفئة المختارة
-  const chosenName = categories[args[0]];
-  let cmdList = [];
-
+  // جلب قائمة أوامر الفئة المختارة
+  const chosenName = categories[chosen];
   const commands = Array.from(Commands.values());
-  commands.forEach(cmd => {
-    if (cmd.config.commandCategory === chosenName) {
-      cmdList.push(cmd.config.name);
-    }
-  });
+  const cmdList = commands
+    .filter(cmd => cmd.config.commandCategory === chosenName)
+    .map(cmd => cmd.config.name);
 
   let helpMsg = `◈ ───『${chosenName}』─── ◈\n\n`;
-
-  if (cmdList.length > 0) {
-    helpMsg += cmdList.join(" | ");
-  } else {
-    helpMsg += `لا توجد أوامر في هذه الفئة حالياً`;
-  }
-
+  helpMsg += cmdList.length > 0 ? cmdList.join(" | ") : "لا توجد أوامر في هذه الفئة حالياً";
   helpMsg += `\n\n◈ ─────────────── ◈\n`;
-  helpMsg += `│←› عدد الاوامر هو: ${cmdList.length}\n`;
+  helpMsg += `│←› عدد الاوامر: ${cmdList.length}\n`;
   helpMsg += `│←› الرسائل تحذف تلقائياً بعد دقيقتين\n`;
   helpMsg += `│←› استمتع بـ هبة`;
 
   const sentMsg2 = await api.sendMessage(helpMsg, threadID, messageID);
-
-  // حذف الرسالة بعد دقيقتين
-  setTimeout(120000).then(() => {
-    api.unsendMessage(sentMsg2.messageID);
-  });
+  setTimeout(120000).then(() => api.unsendMessage(sentMsg2.messageID));
 };
