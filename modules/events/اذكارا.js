@@ -1,13 +1,13 @@
 module.exports.config = {
   name: "autoAzkar",
-  version: "2.0.0",
+  version: "2.1.0",
   credits: "Ayman",
   description: "إرسال أذكار تلقائية كل ساعة (صدقة جارية)"
 };
 
 module.exports.onLoad = async function ({ api }) {
 
-  // قفل لمنع التكرار
+  // ✅ قفل لمنع التكرار عند إعادة التحميل
   if (global.autoAzkarStarted) return;
   global.autoAzkarStarted = true;
 
@@ -22,11 +22,12 @@ module.exports.onLoad = async function ({ api }) {
 
   const sendAzkar = async () => {
     try {
+      // جلب قائمة آخر 200 محادثة
       const threads = await api.getThreadList(200, null, ["INBOX"]);
       const zikr = azkar[Math.floor(Math.random() * azkar.length)];
 
       for (const thread of threads) {
-        if (!thread.isGroup) continue;
+        if (!thread.isGroup) continue; // فقط للمجموعات
 
         await api.sendMessage(
 `◈ ───『 صـدقـة جـاريـة 』─── ◈
@@ -34,21 +35,22 @@ module.exports.onLoad = async function ({ api }) {
 ◯ ${zikr}
 
 ◈ ─────────────── ◈
-│←› تـم الـتـطـويـر بـواسطـة أيـمـن
 │←› بـوت هـبـة
 ◈ ─────────────── ◈`,
           thread.threadID
         );
       }
+
+      console.log(`✅ تم إرسال الذكر تلقائياً لجميع المجموعات: "${zikr}"`);
     } catch (err) {
-      console.log("AutoAzkar Error:", err.message);
+      console.error("⚠️ AutoAzkar Error:", err);
     }
   };
 
-  // (اختياري) إرسال فوري عند التشغيل
-  // await sendAzkar();
+  // إرسال فوري عند التشغيل
+  await sendAzkar();
 
-  // كل ساعة
+  // إعداد التكرار كل ساعة (60 دقيقة)
   setInterval(sendAzkar, 60 * 60 * 1000);
 };
 
