@@ -1,66 +1,39 @@
-const fs = require("fs");
-const { setTimeout } = require("timers/promises");
-
 module.exports.config = {
-  name: "اوامر",
-  version: "2.2.0",
+  name: "الاوامر",
+  version: "1.5.0",
   hasPermssion: 0,
   credits: "Ayman",
-  description: "قائمة أوامر البوت هبة مع فئة اسلاميات، اختيار سريع بالرقم فقط",
+  description: "عرض كافة أوامر البوت مباشرة",
   commandCategory: "النظام",
-  usages: "[رقم الفئة]",
-  usePrefix: true,
+  usages: "الاوامر",
   cooldowns: 5
 };
 
-module.exports.run = async function ({ api, event, args, Commands }) {
-  let { threadID, messageID, type, messageReply } = event;
+module.exports.run = async function ({ api, event, args }) {
+  const { commands } = global.client;
+  const { threadID, messageID } = event;
 
-  // تنظيم الأوامر حسب الفئات (مع فئة اسلاميات)
-  const categories = {
-    "1": "فئة الترفيه",
-    "2": "فئة الذكاء AI",
-    "3": "فئة الإدارة والأنظمة",
-    "4": "فئة الألعاب",
-    "5": "فئة المتفرقات",
-    "6": "فئة اسلاميات"
-  };
-
-  // ======== دعم الرد على الرسائل ========
-  let chosen = args[0];
-  if (!chosen && type === "message_reply") {
-    // حاول نقرأ الرقم من نص الرسالة المردود عليها
-    let replyBody = messageReply.body.trim();
-    if (categories[replyBody]) chosen = replyBody;
+  // تنظيم الأوامر حسب الفئة
+  const categories = {};
+  for (const [name, command] of commands.entries()) {
+    const category = command.config.commandCategory || "أخرى";
+    if (!categories[category]) categories[category] = [];
+    categories[category].push(name);
   }
 
-  if (!chosen || !categories[chosen]) {
-    const msg = "◈ ───『أدخل رقم الفئة فقط』─── ◈\n\n" +
-                "1 ⟢ فئة الترفيه\n" +
-                "2 ⟢ فئة الذكاء AI\n" +
-                "3 ⟢ فئة الإدارة والأنظمة\n" +
-                "4 ⟢ فئة الألعاب\n" +
-                "5 ⟢ فئة المتفرقات\n" +
-                "6 ⟢ فئة اسلاميات\n\n" +
-                "اكتب الرقم فقط لرؤية الأوامر";
-    const sentMsg = await api.sendMessage(msg, threadID, messageID);
-    return setTimeout(120000).then(() => api.unsendMessage(sentMsg.messageID));
+  let msg = `◈ ───『 قـائـمـة الأوامـر 』─── ◈\n\n`;
+
+  // بناء الرسالة لعرض كل الفئات والأوامر تحتها
+  for (const category in categories) {
+    msg += `📂 ┠──『 ${category.toUpperCase()} 』\n`;
+    msg += `│ 💠 ${categories[category].join(" ، ")}\n`;
+    msg += `│\n`;
   }
 
-  // جلب قائمة أوامر الفئة المختارة
-  const chosenName = categories[chosen];
-  const commands = Array.from(Commands.values());
-  const cmdList = commands
-    .filter(cmd => cmd.config.commandCategory === chosenName)
-    .map(cmd => cmd.config.name);
+  msg += `◈ ─────────────── ◈\n`;
+  msg += `◯ إجمالي الأوامر: ${commands.size}\n`;
+  msg += `◯ المطور: أيـمـن\n`;
+  msg += `◈ ─────────────── ◈`;
 
-  let helpMsg = `◈ ───『${chosenName}』─── ◈\n\n`;
-  helpMsg += cmdList.length > 0 ? cmdList.join(" | ") : "لا توجد أوامر في هذه الفئة حالياً";
-  helpMsg += `\n\n◈ ─────────────── ◈\n`;
-  helpMsg += `│←› عدد الاوامر: ${cmdList.length}\n`;
-  helpMsg += `│←› الرسائل تحذف تلقائياً بعد دقيقتين\n`;
-  helpMsg += `│←› استمتع بـ هبة`;
-
-  const sentMsg2 = await api.sendMessage(helpMsg, threadID, messageID);
-  setTimeout(120000).then(() => api.unsendMessage(sentMsg2.messageID));
+  return api.sendMessage(msg, threadID, messageID);
 };
