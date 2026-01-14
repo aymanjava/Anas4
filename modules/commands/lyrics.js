@@ -1,62 +1,32 @@
-const axios = require("axios");
 module.exports.config = {
-  name: "lyrics",
-  author: "A6y",
-  version: "1.0.0",
-  category: "song to text"
-}
-module.exports.onStart = async ({api,event,args}) => {
-  try {
-    const lyrics = args.join(" ")
-  if (!lyrics){
-    api.sendMessage("please put one lyrics name",event.threadID,event.messageID)
-  }
-  const response = await axios.get(`${global.GoatBot.config.api2}/lyrics2?songName=${lyrics}`)
-  const res = response.data
-  const ly = res.lyrics
-  const title = res.title
-  const image = res.image
-  const a6y = await axios.get({responseType: 'stream',url:image});
-  const a6 = a6y.data
-  api.sendMessage({body:`title:${title}\nlyrics:${lyrics}`,attachment:a6},event.threadID,event.messageID)
-  } catch (error) {
-api.sendMessage(`error: ${error.message}`,event.threadID,event.messageID);
-  }
-}
-/*const axios = require("axios");
-
-module.exports = {
-  config: {
-    name: "lyrics",
-    version: "1.0",
-    author: "nazrul",
-    countDown: 5,
-    role: 0,
-    description: {
-      en: "Get song lyrics with their Images"
-    },
-    category: "info",
-    guide: {
-      en: "{pn} <song name>"
-    }
-  },
-
-  onStart: async ({api, event ,args}) =>{
-    try {
-      const lyrics = args.join(' ');
-      if (!lyrics) {
-        return api.sendMessage("Please provide a song name!", event.threadID, event.messageID);
-      }
-      const { data } = await axios.get(`${global.GoatBot.config.api2}/lyrics2?songName=${lyrics}`);
-      const messageData = {
-        body: `❏Title: ${data.title || ''}\n\n❏Artist: ${data.artist || ''}\n\n❏Lyrics:\n\n ${data.lyrics || ''}`,
-        attachment: await global.utils.getStreamFromURL(data.image)
-      };
-      return api.sendMessage(messageData, event.threadID,event.messageID);
-    } catch (error) {
-      console.error(error);
-      return api.sendMessage(error.message, event.threadID, event.messageID);
-    }
-  }
+    name: "كلمات",
+    version: "1.0.0",
+    hasPermision: 0,
+    credit: "عمر ",
+    description: "احصل على معلومات أي أغنية",
+    commandCategory: "خدمات",
+    cooldowns: 0,
 };
-*/
+
+module.exports.run = async function({api, event, args, utils, Users, Threads}) {
+    try {
+        let axios = require('axios');
+        let fs = require("fs-extra");
+        let request = require("request");
+        let {threadID, senderID, messageID} = event;
+        let juswa = args.join(" ");
+	const res = await axios.get(`https://api.popcat.xyz/lyrics?song=${juswa}`);
+	console.log(res.data);
+	var data = res.data;
+	let callback = function() {
+            return api.sendMessage({
+                body:`-اسم الأغنية: ${data.title}\n-أسم المغني : ${data.artist}\n\n-كلمات الأغنية :\n${data.lyrics}`,
+                attachment: fs.createReadStream(__dirname + `/cache/image.png`)
+            }, event.threadID, () => fs.unlinkSync(__dirname + `/cache/image.png`), event.messageID);
+        };
+		return request(encodeURI(data.image)).pipe(fs.createWriteStream(__dirname + `/cache/image.png`)).on("close", callback);
+		} catch (err) {
+        console.log(err)
+        return api.sendMessage(`اكتب اسم الأغنية !`, event.threadID)
+    }
+}
