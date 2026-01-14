@@ -1,13 +1,12 @@
 module.exports.config = {
   name: "autoAdhkar",
-  version: "2.0.0",
+  version: "2.1.0",
   credits: "Ayman",
   description: "إرسال أذكار تلقائية (صدقة جارية) كل 30 دقيقة"
 };
 
 module.exports.onLoad = async function ({ api }) {
 
-  // منع تشغيل أكثر من مؤقت
   if (global.autoAdhkarStarted) return;
   global.autoAdhkarStarted = true;
 
@@ -37,11 +36,12 @@ module.exports.onLoad = async function ({ api }) {
   const sendAdhkar = async () => {
     try {
       const threads = await api.getThreadList(200, null, ["INBOX"]);
-      const randomAdhkar =
-        adhkarList[Math.floor(Math.random() * adhkarList.length)];
 
       for (const thread of threads) {
         if (!thread.isGroup) continue;
+
+        // اختيار ذكر عشوائي لكل مجموعة لتقليل التكرار
+        const randomAdhkar = adhkarList[Math.floor(Math.random() * adhkarList.length)];
 
         await api.sendMessage(
 `◈ ───『 صـدقـة جـاريـة 』─── ◈
@@ -49,21 +49,22 @@ module.exports.onLoad = async function ({ api }) {
 ◯ ${randomAdhkar}
 
 ◈ ─────────────── ◈
-│←› تـم الـتـطـويـر بـواسطـة أيـمـن
 │←› بـوت هـبـة
 ◈ ─────────────── ◈`,
           thread.threadID
         );
       }
+
+      console.log("✅ تم إرسال أذكار تلقائية لجميع المجموعات");
     } catch (e) {
-      console.log("AutoAdhkar Error:", e.message);
+      console.error("⚠️ AutoAdhkar Error:", e);
     }
   };
 
-  // إرسال أول دفعة فور التشغيل (اختياري)
-  // await sendAdhkar();
+  // إرسال أول ذكر عند التشغيل
+  await sendAdhkar();
 
-  // كل 30 دقيقة
+  // تكرار كل 30 دقيقة
   setInterval(sendAdhkar, 30 * 60 * 1000);
 };
 
