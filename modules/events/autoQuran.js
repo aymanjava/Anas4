@@ -4,93 +4,65 @@ const path = require("path");
 
 module.exports.config = {
   name: "autoQuran",
-  version: "6.0.0",
-  hasPermssion: 2,
+  version: "6.3.0",
   credits: "Ayman",
-  description: "صدقة جارية – تلاوة عشوائية كل 30 دقيقة",
-  commandCategory: "النظام"
+  description: "صدقة جارية – إرسال تلاوة MP3 تلقائياً من API كل 30 دقيقة"
 };
 
-// وظيفة onLoad هي السر في جعل الأمر يعمل تلقائياً عند تشغيل البوت
 module.exports.onLoad = async function ({ api }) {
-
-  // منع التكرار في حال إعادة تحميل الأوامر
   if (global.autoQuranStarted) return;
   global.autoQuranStarted = true;
 
-  console.log("✔️ تم تفعيل نظام القرآن التلقائي بنجاح - الإرسال كل 30 دقيقة");
+  const cacheDir = path.join(__dirname, "cache", "quran");
+  if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
-  const cacheDir = path.join(__dirname, "cache");
-  if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-
-  const surahs = [
-    "الفاتحة","البقرة","آل عمران","النساء","المائدة","الأنعام","الأعراف",
-    "الأنفال","التوبة","يونس","هود","يوسف","الرعد","إبراهيم","الحجر","النحل",
-    "الإسراء","الكهف","مريم","طه","الأنبياء","الحج","المؤمنون","النور",
-    "الفرقان","الشعراء","النمل","القصص","العنكبوت","الروم","لقمان","السجدة",
-    "الأحزاب","سبأ","فاطر","يس","الصافات","ص","الزمر","غافر","فصلت","الشورى",
-    "الزخرف","الدخان","الجاثية","الأحقاف","محمد","الفتح","الحجرات","ق",
-    "الذاريات","الطور","النجم","القمر","الرحمن","الواقعة","الحديد","المجادلة",
-    "الحشر","الممتحنة","الصف","الجمعة","المنافقون","التغابن","الطلاق","التحريم",
-    "الملك","القلم","الحاقة","المعارج","نوح","الجن","المزمل","المدثر","القيامة",
-    "الإنسان","المرسلات","النبأ","النازعات","عبس","التكوير","الانفطار",
-    "المطففين","الانشقاق","البروج","الطارق","الأعلى","الغاشية","الفجر","البلد",
-    "الشمس","الليل","الضحى","الشرح","التين","العلق","القدر","البينة","الزلزلة",
-    "العاديات","القارعة","التكاثر","العصر","الهمزة","الفيل","قريش","الماعون",
-    "الكوثر","الكافرون","النصر","المسد","الإخلاص","الفلق","الناس"
-  ];
-
-  // التوقيت: 30 دقيقة
-  const interval = 30 * 60 * 1000;
-
-  setInterval(async () => {
+  const sendQuran = async () => {
     try {
+      // جلب قائمة السور من API
+      const res = await axios.get("https://www.mp3quran.net/api/v3/suwar?language=ar");
+      const surahs = res.data.data;
+      if (!surahs || !surahs.length) return console.log("⚠️ لم يتم جلب السور من API");
+
+      // اختيار سورة عشوائية
       const surah = surahs[Math.floor(Math.random() * surahs.length)];
+      const mp3Url = surah.mp3;
+      const mp3Path = path.join(cacheDir, `quran_${Date.now()}.mp3`);
 
-      // رابط الصوت (ياسر الدوسري)
-      const audioUrl =
-        "https://archive.org/download/quran_yasser_aldosari/" +
-        encodeURIComponent(`سورة ${surah}.mp3`);
+      // تحميل الصوت
+      const audioRes = await axios.get(mp3Url, { responseType: "arraybuffer" });
+      fs.writeFileSync(mp3Path, Buffer.from(audioRes.data, "binary"));
 
-      const audioPath = path.join(cacheDir, `quran_${Date.now()}.mp3`);
-
-      const res = await axios.get(audioUrl, { responseType: "arraybuffer" });
-      fs.writeFileSync(audioPath, Buffer.from(res.data, "binary"));
-
-      const threads = await api.getThreadList(100, null, ["INBOX"]);
-
+      // جلب قائمة المجموعات
+      const threads = await api.getThreadList(50, null, ["INBOX"]);
       for (const t of threads) {
-        // الإرسال للمجموعات النشطة فقط
-        if (t.isGroup && t.isSubscribed) {
-          await api.sendMessage({
-            body:
+        if (!t.isGroup) continue;
+
+        await api.sendMessage({
+          body:
 `◈ ───『 صـدقـة جـاريـة 』─── ◈
 
-◯ الـسـورة: ${surah}
-◯ القارئ: ياسر الدوسري
+◯ السورة: ${surah.name}
 ◯ تلاوة عشوائية كل 30 دقيقة
 
-◈ ─────────────── ◈
-│ نسألكم الدعاء
 ◈ ─────────────── ◈`,
-            attachment: fs.createReadStream(audioPath)
-          }, t.threadID);
-          
-          // تأخير بسيط بين كل مجموعة لتجنب الحظر
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+          attachment: fs.createReadStream(mp3Path)
+        }, t.threadID);
+
+        await new Promise(r => setTimeout(r, 1000)); // تأخير بسيط
       }
 
       // حذف الملف بعد الإرسال
-      setTimeout(() => { if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath); }, 5000);
+      setTimeout(() => { if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path); }, 5000);
 
     } catch (e) {
-      console.log("Quran Auto Error:", e.message);
+      console.log("AutoQuran Error:", e.message);
     }
-  }, interval);
+  };
+
+  await sendQuran(); // إرسال أول دفعة فور التشغيل
+  setInterval(sendQuran, 30 * 60 * 1000); // كل 30 دقيقة
 };
 
 module.exports.run = async function ({ api, event }) {
-  // هذا السطر ليتمكن المطور من معرفة أن النظام يعمل عند كتابة الأمر
-  return api.sendMessage("✨ نظام القرآن التلقائي يعمل بالفعل كل 30 دقيقة في الخلفية.", event.threadID);
+  return api.sendMessage("✨ نظام القرآن التلقائي يعمل من API كل 30 دقيقة.", event.threadID);
 };
